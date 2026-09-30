@@ -1,0 +1,37 @@
+# Logins (2026-09-28). The Pi itself (pi_detect.py reads /cam, publishes /detect) needs none;
+# everyone else -- browser, VLC, QGC, detect.ps1 -- logs in as 'viewer'. Only the hash is stored.
+authInternalUsers:
+  - user: any
+    pass:
+    ips: ['127.0.0.1', '::1']
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+      - action: metrics
+      - action: pprof
+  - user: viewer
+    pass: sha256:REPLACE_WITH_YOUR_HASH   # base64(sha256(password)) -- see README
+    ips: []
+    permissions:
+      - action: read
+      - action: playback
+
+# Pi 5 + Camera Module 3 -> http://pi5drone.local:8889/cam (browser, WebRTC)
+#                           rtsp://pi5drone.local:8554/cam (QGC / VLC)
+paths:
+  cam:
+    source: rpiCamera
+    rpiCameraWidth: 1280
+    rpiCameraHeight: 720
+    rpiCameraFPS: 30
+    rpiCameraCodec: softwareH264
+    rpiCameraBitrate: 3000000
+    rpiCameraIDRPeriod: 15       # keyframe every 0.5 s: blur clears fast
+    rpiCameraHFlip: true         # HFlip + VFlip = rotation 180 (camera mounted upside down)
+    rpiCameraVFlip: true
+    rpiCameraAfMode: manual      # lens locked at infinity, as for flight
+    rpiCameraLensPosition: 0
+  detect:                        # boxed video published by ~/detect/pi_detect.py
+    source: publisher

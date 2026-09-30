@@ -1,0 +1,1209 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>AR0234 FPV Bring-up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* dark-first: the bare :root carries the dark palette, matching the
+     sibling documents in this handover package. light is the override. */
+  :root {
+    --bg:#0a1220; --panel:#101d30; --panel2:#17273e; --sunk:#060d17;
+    --line:#24384f; --line2:#2f4863;
+    --ink:#e6eefb; --muted:#93a7c0; --dim:#6d839c;
+    --accent:#35d6e3; --accent-ink:#04222a;
+    --ok:#46d98e; --warn:#f5bd52; --crit:#ff6d7d;
+    --ok-bg:#0f2a20; --warn-bg:#2b2413; --crit-bg:#2c161d;
+    --shadow:0 1px 2px #0006, 0 12px 32px #0004;
+    --sans:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg:#f2f6fa; --panel:#ffffff; --panel2:#e9f0f7; --sunk:#0d1a29;
+      --line:#d3dee9; --line2:#bccbdb;
+      --ink:#0d1a29; --muted:#54697f; --dim:#71859a;
+      --accent:#0a7482; --accent-ink:#ffffff;
+      --ok:#15734a; --warn:#8a5704; --crit:#b21f2d;
+      --ok-bg:#e3f5ec; --warn-bg:#fcf2dd; --crit-bg:#fdeaec;
+      --shadow:0 1px 2px #0f253b14, 0 10px 28px #0f253b12;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg:#f2f6fa; --panel:#ffffff; --panel2:#e9f0f7; --sunk:#0d1a29;
+    --line:#d3dee9; --line2:#bccbdb;
+    --ink:#0d1a29; --muted:#54697f; --dim:#71859a;
+    --accent:#0a7482; --accent-ink:#ffffff;
+    --ok:#15734a; --warn:#8a5704; --crit:#b21f2d;
+    --ok-bg:#e3f5ec; --warn-bg:#fcf2dd; --crit-bg:#fdeaec;
+    --shadow:0 1px 2px #0f253b14, 0 10px 28px #0f253b12;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font:400 15px/1.6 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:940px; margin:0 auto; padding-block:0 72px; padding-left:20px; padding-right:20px; }
+
+  /* ---- sticky progress bar ---- */
+  .bar {
+    position:sticky; top:env(safe-area-inset-top, 0px); z-index:40;
+    background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+    margin-inline:-20px; padding:10px 20px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .bar-name { font-weight:600; font-size:13px; letter-spacing:.02em; white-space:nowrap; }
+  .bar-track { flex:1 1 140px; height:6px; border-radius:99px; background:var(--panel2); overflow:hidden; min-width:100px; }
+  .bar-fill { height:100%; width:0; background:var(--accent); border-radius:99px; transition:width .25s ease; }
+  .bar-count { font:500 13px/1 var(--mono); font-variant-numeric:tabular-nums; color:var(--muted); white-space:nowrap; }
+
+  /* ---- header ---- */
+  header.hero { padding-block:36px 8px; }
+  .eyebrow {
+    font:600 11px/1 var(--mono); letter-spacing:.16em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:14px;
+  }
+  h1 { font-size:clamp(28px,5.5vw,44px); line-height:1.08; margin:0 0 14px; font-weight:700; letter-spacing:-.02em; text-wrap:balance; }
+  .lead { font-size:17px; color:var(--muted); max-width:62ch; margin:0 0 22px; }
+  .lead strong { color:var(--ink); font-weight:600; }
+
+  .facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden; margin-bottom:8px; }
+  .fact { background:var(--panel); padding:14px 16px; }
+  .fact dt { font:600 10px/1 var(--mono); letter-spacing:.13em; text-transform:uppercase; color:var(--dim); margin-bottom:7px; }
+  .fact dd { margin:0; font-size:14px; line-height:1.45; }
+  .fact dd b { font-weight:600; }
+
+  /* ---- parts ---- */
+  .part { margin-top:44px; }
+  .part-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; padding-bottom:12px; border-bottom:2px solid var(--line2); margin-bottom:6px; }
+  .part-num { font:600 12px/1 var(--mono); color:var(--accent-ink); background:var(--accent); padding:5px 8px; border-radius:5px; letter-spacing:.06em; }
+  .part-head h2 { margin:0; font-size:23px; font-weight:700; letter-spacing:-.01em; }
+  .part-when { font-size:13px; color:var(--muted); flex-basis:100%; margin-top:2px; }
+
+  h3 { font-size:16px; font-weight:600; margin:28px 0 10px; letter-spacing:-.005em; }
+  h3 .h3-tag { font:500 10px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin-left:9px; vertical-align:middle; }
+
+  p { margin:0 0 14px; max-width:68ch; }
+  .muted { color:var(--muted); }
+  a { color:var(--accent); }
+
+  /* ---- steps ---- */
+  ol.steps { list-style:none; margin:0 0 4px; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .step {
+    display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:start;
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:13px 15px; transition:border-color .15s, opacity .15s;
+  }
+  .step:has(input:checked) { opacity:.55; border-color:var(--line); }
+  .step:has(input:checked) .step-t { text-decoration:line-through; text-decoration-color:var(--dim); }
+  .step input[type=checkbox] {
+    appearance:none; width:19px; height:19px; margin:2px 0 0; flex:none;
+    border:1.5px solid var(--line2); border-radius:5px; background:var(--panel2);
+    cursor:pointer; display:grid; place-content:center; transition:.15s;
+  }
+  .step input[type=checkbox]:checked { background:var(--ok); border-color:var(--ok); }
+  .step input[type=checkbox]:checked::after {
+    content:""; width:5px; height:9px; margin-top:-2px;
+    border:solid var(--bg); border-width:0 2px 2px 0; transform:rotate(42deg);
+  }
+  .step input[type=checkbox]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .step-b { min-width:0; }
+  .step-t { font-weight:500; display:block; }
+  .step-d { font-size:13.5px; color:var(--muted); margin-top:5px; max-width:64ch; }
+  .step-d code, p code, li code, td code, .note code { font:500 .88em var(--mono); background:var(--panel2); padding:1px 5px; border-radius:4px; color:var(--ink); overflow-wrap:anywhere; }
+
+  /* ---- command blocks ---- */
+  .cmd { position:relative; margin:9px 0 2px; }
+  .cmd pre {
+    margin:0; background:var(--sunk); border:1px solid var(--line);
+    border-radius:8px; padding:12px 46px 12px 14px;
+    overflow-x:auto; font:400 12.5px/1.65 var(--mono);
+    color:#dbe9f7; white-space:pre;
+  }
+  :root[data-theme="light"] .cmd pre, :root:not([data-theme="dark"]) .cmd pre { color:#dbe9f7; }
+  .cmd button {
+    position:absolute; top:7px; right:7px; z-index:2;
+    font:500 10px/1 var(--mono); letter-spacing:.07em; text-transform:uppercase;
+    color:#9fb4cb; background:#16243a;    border:1px solid #2c4058; border-radius:5px; padding:5px 7px; cursor:pointer; transition:.15s;
+  }
+  .cmd button:hover { color:#fff; border-color:#456e8e; }
+  .cmd button.done { color:var(--ok); border-color:var(--ok); }
+  .cmd button:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+
+  /* ---- notes ---- */
+  .note {
+    border-left:3px solid var(--line2); background:var(--panel2);
+    padding:12px 15px; border-radius:0 8px 8px 0; margin:14px 0; font-size:14px;
+  }
+  .note > :last-child { margin-bottom:0; }
+  .note.crit { border-color:var(--crit); background:var(--crit-bg); }
+  .note.warn { border-color:var(--warn); background:var(--warn-bg); }
+  .note.ok   { border-color:var(--ok);   background:var(--ok-bg); }
+  .note-h { display:block; font:600 10px/1 var(--mono); letter-spacing:.13em; text-transform:uppercase; margin-bottom:8px; }
+  .note.crit .note-h { color:var(--crit); }
+  .note.warn .note-h { color:var(--warn); }
+  .note.ok   .note-h { color:var(--ok); }
+  .note:not(.crit):not(.warn):not(.ok) .note-h { color:var(--dim); }
+
+  /* ---- record fields ---- */
+  .rec { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:14px 0; }
+  .rec label { display:flex; flex-direction:column; gap:5px; font:600 10px/1 var(--mono); letter-spacing:.11em; text-transform:uppercase; color:var(--dim); }
+  .rec input {
+    font:500 14px var(--mono); color:var(--ink); background:var(--panel);
+    border:1px solid var(--line2); border-radius:7px; padding:8px 10px; width:100%;
+  }
+  .rec input:focus { outline:2px solid var(--accent); outline-offset:-1px; border-color:var(--accent); }
+  .rec input::placeholder { color:var(--dim); font-weight:400; }
+
+  /* ---- tables ---- */
+  .tw { overflow-x:auto; border:1px solid var(--line); border-radius:10px; margin:14px 0; background:var(--panel); }
+  table { width:100%; border-collapse:collapse; min-width:480px; font-size:13.5px; }
+  th, td { padding:9px 13px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:var(--panel2); font:600 10px/1.3 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--muted); white-space:nowrap; }
+  tr:last-child td { border-bottom:0; }
+  td.n { font:500 13px var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .pill { display:inline-block; font:600 10px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; padding:4px 7px; border-radius:4px; }
+  .pill.ok { color:var(--ok); background:var(--ok-bg); }
+  .pill.crit { color:var(--crit); background:var(--crit-bg); }
+  .pill.warn { color:var(--warn); background:var(--warn-bg); }
+
+  /* ---- preflight ---- */
+  .preflight { border:1px solid var(--accent); border-radius:12px; padding:20px; margin-top:20px; background:var(--panel); box-shadow:var(--shadow); }
+  .preflight h3 { margin-top:0; }
+  .preflight ol.steps .step { background:var(--panel2); }
+
+  /* ---- footer ---- */
+  footer { margin-top:56px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  .tools { display:flex; gap:9px; flex-wrap:wrap; margin-bottom:18px; }
+  .tools button {
+    font:500 12px var(--sans); color:var(--muted); background:var(--panel);
+    border:1px solid var(--line2); border-radius:7px; padding:8px 13px; cursor:pointer;
+  }
+  .tools button:hover { color:var(--ink); border-color:var(--accent); }
+  .tools button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+  @media print {
+    .bar, .tools, .cmd button { display:none; }
+    body { background:#fff; color:#000; }
+    .step, .note, .tw, .preflight, .fact { break-inside:avoid; }
+  }
+</style>
+
+<div class="wrap">
+
+  <div class="bar">
+    <span class="bar-name">Build progress</span>
+    <span class="bar-track"><span class="bar-fill" id="fill"></span></span>
+    <span class="bar-count" id="count">0 / 0</span>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Raspberry Pi 5 · Camera Module 3 now · Hailo-8L and AR0234 next · updated 2026-09-26</div>
+    <h1>AR0234 FPV Bring-up</h1>
+    <p class="lead">
+      Build log and guide for the drone camera: a Pi 5 streams live video to a laptop and a web page, detects
+      objects, and later reports obstacles to the flight controller. <strong>Ordered by project phase.</strong>
+      Finished phases keep every step, so the whole thing can be rebuilt from a blank SD card.
+    </p>
+
+    <dl class="facts">
+      <div class="fact">
+        <dt>Stream</dt>
+        <dd><b>1280×720 · 30 fps · H.264</b><br><span class="muted">148 ms glass to glass, measured.</span></dd>
+      </div>
+      <div class="fact">
+        <dt>Detection now</dt>
+        <dd><b>YOLOv8s on the Hailo-8L · 30 fps</b><br><span class="muted">55–60 °C, detection at 50–70 % CPU.</span></dd>
+      </div>
+      <div class="fact">
+        <dt>Camera next</dt>
+        <dd><b>AR0234 · global shutter · mono</b><br><span class="muted">No jello from props; no colour.</span></dd>
+      </div>
+    </dl>
+  </header>
+
+  <!-- ================= STATUS ================= -->
+  <section class="part" style="margin-top:34px">
+    <div class="part-head">
+      <span class="part-num">STATUS</span>
+      <h2>Where the project is</h2>
+    </div>
+    <div class="tw"><table><thead><tr><th>Phase</th><th>What it adds</th><th>Gate</th><th>Status</th></tr></thead><tbody>
+      <tr><td class="n">0</td><td><b>Pi 5 + Camera Module 3</b> — stream, web pages, detection on the CPU</td><td>148 ms · 10-min soak · 15 fps detection at 66–69 °C</td><td><span class="pill ok">Done</span> 2026-09-26</td></tr>
+      <tr><td class="n">1</td><td><b>Hailo</b> — detection off the CPU</td><td>30 fps boxes · <code>throttled=0x0</code></td><td><span class="pill ok">Done</span> 2026-09-28</td></tr>
+      <tr><td class="n">2</td><td><b>AR0234</b> — replaces the CM3</td><td>Phase 0 gates again · greyscale benchmark</td><td><span class="pill warn">Waiting</span> board</td></tr>
+      <tr><td class="n">3</td><td><b>Distance sensor</b> (VL53L5CX)</td><td>Matches a tape measure</td><td>Next</td></tr>
+      <tr><td class="n">4</td><td><b>Obstacle avoidance</b> — the FC avoids what the Pi reports</td><td>Simulator → props off → tethered → flight</td><td>After 1–3</td></tr>
+      <tr><td class="n">—</td><td><b>On the drone</b> — power, mounting, radios, FC link</td><td>Bench with motors, props off</td><td>Any time after 1</td></tr>
+    </tbody></table></div>
+
+    <h3>Using it today</h3>
+    <div class="tw"><table><tbody>
+      <tr><td><b>Power on</b></td><td>Wait ~30 s for the Pi to join the office WiFi <code>TP-Link_C6A4</code> or the phone hotspot <code>[phone-hotspot]</code>. The laptop must be on the same one.</td></tr>
+      <tr><td><b>Plain video</b></td><td><code>http://pi5drone.local:8889/cam</code> — any browser. Starts at boot.</td></tr>
+      <tr><td><b>Video with boxes</b></td><td><code>http://pi5drone.local:8889/detect</code> — runs on the Hailo, starts at boot. Or on the laptop: <code>.\detect.ps1</code>.</td></tr>
+      <tr><td><b>Log in</b></td><td><code>ssh -4 pi@pi5drone.local</code> — <code>-4</code> matters on the hotspot. Hotspot IP 172.20.10.2, office 192.168.0.110.</td></tr>
+      <tr><td><b>Progress notes</b></td><td><code>OneDrive\Gamuda intern\pi5-fpv-bringup\PROGRESS.md</code> — plus every script mentioned here.</td></tr>
+      <tr><td><b>Switch off</b></td><td><code>sudo poweroff</code>, wait for the green LED to stop, then unplug.</td></tr>
+    </tbody></table></div>
+
+    <h3>Where it is going</h3>
+    <div class="cmd"><pre>  camera ──► Pi 5 ──┬── Hailo:  WHAT it is, WHERE in the frame ──┐
+                    │                                            ├──► obstacle report ──► FC (ArduPilot)
+  LiDAR  ───────────┴── HOW FAR it is ──────────────────────────┘    MAVLink · J11 UART      │
+                                                                                     stop · slide · path around
+  RC link ──────────────────────────────────────────────────────────────────────────► FC   pilot always overrides</pre></div>
+    <div class="note ok">
+      <span class="note-h">The rule that keeps it safe</span>
+      The Pi <strong>reports obstacles</strong>; the flight controller decides and flies. The Pi never sends
+      stick commands, and the RC link never goes through the Pi — lose the Pi and you lose avoidance and video,
+      never the aircraft. Each phase adds one new thing, so a failure points at its own cause.
+    </div>
+  </section>
+
+  <!-- ================= PHASE 0 ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">PHASE 0</span>
+      <h2>Built so far — Pi 5 + Camera Module 3</h2>
+      <div class="part-when">
+        <span class="pill ok">Done</span> 2026-09-25 to 26. Commands marked <code># Pi</code> run on the Pi over SSH;
+        <code># laptop</code> ones in PowerShell.
+      </div>
+    </div>
+
+    <h3>0.1 Flash the Pi <span class="h3-tag">card A · stock OS</span></h3>
+    <div class="note ok"><span class="note-h">Result</span>Hostname <code>pi5drone</code>, user <code>pi</code>. The laptop's SSH key is on the Pi, so SSH asks no password; <code>sudo</code> still does.</div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="k1"><div class="step-b"><label for="k1" class="step-t">Write Raspberry Pi OS (64-bit) to the microSD card, on the PC</label>
+        <div class="step-d">The card goes into the PC's SD slot or a USB reader. In Raspberry Pi Imager choose <b>Raspberry Pi 5</b>, <b>Raspberry Pi OS (64-bit)</b>, and the card — writing erases it. Customisation:
+        <div class="tw" style="margin:8px 0"><table><tbody>
+          <tr><td><b>Hostname</b></td><td>Letters, numbers and hyphens only — <code>pi5drone</code></td></tr>
+          <tr><td><b>Localisation</b></td><td>Kuala Lumpur fills in time zone and keyboard</td></tr>
+          <tr><td><b>User</b></td><td>Username and password</td></tr>
+          <tr><td><b>Wi-Fi</b></td><td>Network name and password</td></tr>
+          <tr><td><b>Remote access</b></td><td>SSH with <b>password authentication</b> — Imager 2.0.0 had a bug where a public key made the other settings fail to apply</td></tr>
+          <tr><td><b>Raspberry Pi Connect</b></td><td>Skip</td></tr>
+        </tbody></table></div></div></div></li>
+      <li class="step"><input type="checkbox" id="k2"><div class="step-b"><label for="k2" class="step-t">Card in, camera connected, Pi powered off</label>
+        <div class="step-d">The microSD slot is on the underside. Narrow 22-pin cable end into either CAM/DISP connector on the Pi 5, wide 15-pin end into the CM3. Close both latches fully.</div></div></li>
+      <li class="step"><input type="checkbox" id="k3"><div class="step-b"><label for="k3" class="step-t">Boot, SSH in, update</label>
+        <div class="step-d">The first boot takes a few minutes and may reboot once. If <code>.local</code> does not resolve, find the IP in the router's or phone's device list.
+        <div class="cmd"><pre># laptop
+ssh -4 pi@pi5drone.local</pre></div>
+        <div class="cmd"><pre># Pi
+sudo apt update &amp;&amp; sudo apt full-upgrade -y &amp;&amp; sudo reboot</pre></div>
+        To log in without a password from the laptop, append the laptop's <code>~\.ssh\id_ed25519.pub</code> to the Pi's <code>~/.ssh/authorized_keys</code>.</div></div></li>
+    </ol>
+
+    <h3>0.2 Confirm the camera works</h3>
+    <div class="note ok"><span class="note-h">Result</span><code>imx708</code> detected · photo sharp · H.264 file ~330 KB for 2 s.</div>
+    <p>Three checks, each proving a different part. <code>camera_auto_detect=1</code> is the default, so nothing to edit.</p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="k4"><div class="step-b"><label for="k4" class="step-t">Control lines — the camera is detected</label>
+        <div class="step-d">The ID is read over I²C, so this proves those lines and nothing more.
+        <div class="cmd"><pre># Pi
+rpicam-hello --list-cameras     # expect imx708</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="k5"><div class="step-b"><label for="k5" class="step-t">Data lanes — a real photo</label>
+        <div class="step-d">The picture travels on separate wires, which only a capture exercises.
+        <div class="cmd"><pre># Pi
+rpicam-still -n -o test.jpg</pre></div>
+        <div class="cmd"><pre># laptop
+scp pi@pi5drone.local:test.jpg .</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="k6"><div class="step-b"><label for="k6" class="step-t">Encoder — H.264 in software</label>
+        <div class="step-d">The Pi 5 has <b>no hardware H.264 encoder</b>; every frame is encoded by the CPU (libx264). Everything after this depends on it.
+        <div class="cmd"><pre># Pi
+rpicam-vid -t 2000 -n --codec h264 -o /tmp/t.h264 &amp;&amp; ls -l /tmp/t.h264</pre></div></div></div></li>
+    </ol>
+    <div class="tw"><table><thead><tr><th>If this happens</th><th>It means</th></tr></thead><tbody>
+      <tr><td>No camera listed</td><td>Cable flipped at one end, or a latch open. Power off and reseat.</td></tr>
+      <tr><td>Listed, but the capture times out or is garbled</td><td>A data conductor not making contact. Reseat.</td></tr>
+      <tr><td><code>Unable to find an appropriate H.264 codec</code></td><td>Software encoder missing. <span class="pill crit">Stop</span> — nothing later works.</td></tr>
+    </tbody></table></div>
+
+    <h3>0.3 Network <span class="h3-tag">office WiFi and phone hotspot</span></h3>
+    <div class="note ok"><span class="note-h">Result</span>The Pi joins either network by itself. At the office both ends on 5 GHz; the hotspot is 2.4 GHz only — fine for testing, more smearing.</div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="n1"><div class="step-b"><label for="n1" class="step-t">Laptop on 5 GHz, not just the Pi</label>
+        <div class="step-d">Same network name, but the laptop had joined on the crowded 2.4 GHz band — that was the blur. Check, and reconnect if it says 2.4 GHz:
+        <div class="cmd"><pre># laptop
+netsh wlan show interfaces</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="n2"><div class="step-b"><label for="n2" class="step-t">WiFi power saving off on the Pi</label>
+        <div class="step-d">Otherwise the radio naps between packets and sends in bursts — delay and dropouts. Once per saved network:
+        <div class="cmd"><pre># Pi
+sudo nmcli con mod "TP-Link_C6A4" 802-11-wireless.powersave 2 &amp;&amp; sudo nmcli con up "TP-Link_C6A4"
+sudo nmcli con mod [phone-hotspot] 802-11-wireless.powersave 2</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="n3"><div class="step-b"><label for="n3" class="step-t">Phone hotspot saved, for use away from the office</label>
+        <div class="step-d">Turn the hotspot on, pick it from the WiFi icon on the Pi desktop once, and it joins by itself from then on. iPhone: turn on <b>Maximise Compatibility</b>. A new network can be added over SSH with <code>sudo nmtui</code>. A laptop's HDMI port is output only — it cannot show the Pi's screen.</div></div></li>
+      <li class="step"><input type="checkbox" id="n4"><div class="step-b"><label for="n4" class="step-t">Always <code>ssh -4</code> on the hotspot</label>
+        <div class="step-d">The hotspot hands out IPv6 too. Without <code>-4</code> the Pi sees the laptop's IPv6 address, and anything that streams back to "the laptop I came from" sends into nowhere.</div></div></li>
+    </ol>
+
+    <h3>0.4 Live stream to the laptop <span class="h3-tag">UDP · ffplay</span></h3>
+    <div class="note ok"><span class="note-h">Result</span><b>148 ms average</b> (7 readings, 129–169 ms) · 10-min soak: no reboot, stream up 60/60 checks, 5.06–5.14 V, <code>throttled=0x0</code>, 53→60 °C, 3 brief smears. The web page in 0.5 is now the everyday view; this direct stream stays for testing.</div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="k7"><div class="step-b"><label for="k7" class="step-t">Laptop: install ffmpeg, open the firewall</label>
+        <div class="step-d">Open a new terminal after installing. The rule needs an <b>admin</b> PowerShell — without it the Pi transmits into a black screen with nothing in any log.
+        <div class="cmd"><pre>winget install --id Gyan.FFmpeg -e</pre></div>
+        <div class="cmd"><pre>netsh advfirewall firewall add rule name="FPV 5600" dir=in action=allow protocol=UDP localport=5600</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="k8"><div class="step-b"><label for="k8" class="step-t">Start the stream, then the viewer</label>
+        <div class="step-d"><code>start-stream.sh</code> (on the Pi, in <code>~</code>) runs the command below detached and finds the laptop's address by itself. <b>Stop MediaMTX first</b> — only one program can use the camera: <code>sudo systemctl stop mediamtx</code>.
+        <div class="cmd"><pre># Pi
+rpicam-vid -t 0 -n --inline --intra 15 --low-latency --bitrate 3000000 \
+  --width 1280 --height 720 --framerate 30 --rotation 180 \
+  --autofocus-mode manual --lens-position 0 \
+  -o udp://&lt;laptop-ip&gt;:5600</pre></div>
+        <div class="cmd"><pre># laptop  (or .\view-stream.ps1)
+ffplay -fflags nobuffer -flags low_delay -framedrop -probesize 32 -analyzeduration 0 \
+  -sync ext -f h264 -framerate 60 udp://0.0.0.0:5600</pre></div>
+        <div class="note warn" style="margin:8px 0"><span class="note-h">Two things the short ffplay command gets wrong</span>
+        <b><code>udp://0.0.0.0:5600</code>, not <code>udp://@:5600</code></b> — the winget ffmpeg build rejects <code>@</code> with <code>I/O error</code> and no window opens.<br>
+        <b><code>-f h264 -framerate 60 -sync ext</code></b> — raw H.264 has no timestamps; ffplay guesses 25 fps against the 30 sent, and the delay grows to ~20 s. Reading at 60 keeps the queue empty.</div>
+        HDMI preview as well: drop <code>-n</code>, add <code>--fullscreen</code>, and over SSH prefix <code>WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/run/user/1000</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="k9"><div class="step-b"><label for="k9" class="step-t">Tune one flag at a time</label>
+        <div class="step-d">The command above already has them. Each one is latency:
+        <div class="tw" style="margin:8px 0"><table><tbody>
+          <tr><td class="n">--low-latency</td><td>Encoder stops holding frames back</td></tr>
+          <tr><td class="n">--intra 15</td><td>Keyframe every 0.5 s — how long a smear lasts after lost packets</td></tr>
+          <tr><td class="n">--inline</td><td>Stream settings repeat with each keyframe, so a viewer can join mid-stream</td></tr>
+          <tr><td class="n">--bitrate 3000000</td><td>Cap it to fit the radio; an uncapped encoder builds a queue, and a queue is delay</td></tr>
+          <tr><td class="n">--lens-position 0</td><td>Focus locked at infinity; autofocus hunting looks like a link problem</td></tr>
+        </tbody></table></div></div></div></li>
+      <li class="step"><input type="checkbox" id="k10"><div class="step-b"><label for="k10" class="step-t">Measure latency, then run 10 minutes</label>
+        <div class="step-d">Open <code>latency-test.html</code> (big millisecond stopwatch next to the live page), point the camera at the stopwatch, screenshot with Win+Shift+S, and subtract the two numbers. Several readings, average them — the laptop screen refreshes every 17 ms.
+        <div class="note ok" style="margin:8px 0"><span class="note-h">Gate</span>A live picture, a latency number, and 10 minutes without a dropout.</div></div></div></li>
+    </ol>
+    <div class="note warn"><span class="note-h">UDP, never TCP, for the live view</span>
+      TCP retransmits; on lossy WiFi one lost packet stalls everything behind it and the delay grows and never
+      recovers. UDP drops the packet, you get a brief smear, and the stream stays live.</div>
+    <div class="tw"><table><thead><tr><th>If this happens</th><th>It means</th></tr></thead><tbody>
+      <tr><td>No window at all</td><td>In order: the firewall rule; the IP in the Pi's command is the <em>laptop's</em>; same network; viewer uses <code>udp://0.0.0.0</code>; stream still running (<code>pgrep -a rpicam-vid</code> — it dies with the SSH session that started it unless detached with <code>setsid nohup … &amp;</code>).</td></tr>
+      <tr><td>Delay starts small and grows to ~20 s</td><td>Viewer reading at 25 fps. Add <code>-f h264 -framerate 60 -sync ext</code>.</td></tr>
+      <tr><td>Picture smears, then sharpens</td><td>Packets lost on WiFi; the next keyframe repairs it. Laptop on 5 GHz, Pi power saving off (0.3).</td></tr>
+      <tr><td>Streams to an address with colons</td><td>IPv6 on the hotspot. <code>ssh -4</code>.</td></tr>
+      <tr><td>Pi reboots by itself while streaming</td><td>Power supply. <code>vcgencmd pmic_read_adc EXT5V_V</code> under ~5.0 V is the sign — seen at 4.86–4.98 V on the office supply, 5.06–5.14 V on a good one. <code>throttled=0x0</code> does not clear it: it resets every boot.</td></tr>
+    </tbody></table></div>
+    <div class="rec">
+      <label>Latency (ms)<input data-rec="lat" placeholder="148"></label>
+      <label>Clean range (m)<input data-rec="range" placeholder="—"></label>
+    </div>
+
+    <h3>0.5 Live web page <span class="h3-tag">MediaMTX · starts at boot</span></h3>
+    <div class="note ok"><span class="note-h">Result</span>Any browser on the same network: <code>http://pi5drone.local:8889/cam</code>. Same feed as RTSP for QGroundControl or VLC: <code>rtsp://pi5drone.local:8554/cam</code>. About 30 fps.</div>
+    <p>MediaMTX (v1.21.1) reads the camera itself and serves it to browsers over WebRTC — no <code>rpicam-vid</code>, no code. It lives in <code>~/mediamtx/</code>.</p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="w1"><div class="step-b"><label for="w1" class="step-t">Download it</label>
+        <div class="cmd"><pre># Pi
+V=$(curl -s https://api.github.com/repos/bluenviron/mediamtx/releases/latest | grep -m1 tag_name | cut -d\" -f4)
+mkdir -p ~/mediamtx &amp;&amp; cd ~/mediamtx
+curl -sL "https://github.com/bluenviron/mediamtx/releases/download/$V/mediamtx_${V}_linux_arm64.tar.gz" | tar xz</pre></div></div></li>
+      <li class="step"><input type="checkbox" id="w2"><div class="step-b"><label for="w2" class="step-t">Camera settings — <code>~/mediamtx/cam.yml</code></label>
+        <div class="step-d">Only the settings that differ from the defaults. MediaMTX reloads this file by itself when it changes.
+        <div class="cmd"><pre>paths:
+  cam:
+    source: rpiCamera
+    rpiCameraWidth: 1280
+    rpiCameraHeight: 720
+    rpiCameraFPS: 30
+    rpiCameraCodec: softwareH264
+    rpiCameraBitrate: 3000000
+    rpiCameraIDRPeriod: 15       # keyframe every 0.5 s
+    rpiCameraHFlip: true         # HFlip + VFlip = rotation 180
+    rpiCameraVFlip: true
+    rpiCameraAfMode: manual      # focus locked at infinity
+    rpiCameraLensPosition: 0
+  detect:                        # boxed video from pi_detect.py (0.7)
+    source: publisher</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="w3"><div class="step-b"><label for="w3" class="step-t">Start at boot</label>
+        <div class="step-d">The service file is in <code>~/mediamtx/mediamtx.service</code> (copy in the OneDrive folder).
+        <div class="cmd"><pre>sudo cp ~/mediamtx/mediamtx.service /etc/systemd/system/ &amp;&amp; sudo systemctl enable --now mediamtx</pre></div>
+        Stop <code>sudo systemctl stop mediamtx</code> · log <code>journalctl -u mediamtx -n 30</code>. Stop it before anything else uses the camera (<code>rpicam-*</code>, the Hailo demos).</div></div></li>
+    </ol>
+
+    <h3>0.6 Object detection on the laptop <span class="h3-tag">CPU · YOLO11n</span></h3>
+    <div class="note ok"><span class="note-h">Result</span><b>~30 fps on the RTX 3050 GPU</b> (CPU: ~16 fps), <b>~0.19 s delay</b>. yolo11s: 26 fps, more accurate. Saw person, chair, backpack. The Pi is untouched. Model: YOLO11n — Ultralytics, nano size, trained on COCO's 80 everyday classes.</div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="e1"><div class="step-b"><label for="e1" class="step-t">Run <code>.\detect.ps1</code> in the OneDrive folder</label>
+        <div class="step-d">Reads the Pi's RTSP feed, draws boxes; <b>q</b> quits. <code>.\detect.ps1 --test 100</code> checks it without a window. It always processes the newest frame, so the delay cannot build up; FFmpeg's input buffer is off and the decoder runs on one thread — frame-threaded decoding holds one frame per CPU thread, which had made it ~1 s. Python packages live in <code>C:\Users\ivan\fpv-detect\.venv</code> (made with <code>uv</code>) — away from OneDrive and from the ESP-IDF Python. GPU: PyTorch <code>2.14.0+cu130</code> (~2.5 GB — installed on WiFi); YOLO uses the GPU by itself. The first frame takes ~7 s while the GPU warms up.</div></div></li>
+    </ol>
+
+    <h3>0.7 Object detection on the Pi <span class="h3-tag">CPU · the fallback since Phase 1</span></h3>
+    <div class="note ok"><span class="note-h">Result</span>Boxed video at <code>http://pi5drone.local:8889/detect</code>. 320 px model <b>22 fps</b> flat out, capped at <b>15 fps</b>: 66–69 °C with the fan, no throttling. Checked against official YOLO on the same frame: same object, boxes within ~6 px.</div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="e2"><div class="step-b"><label for="e2" class="step-t">Model converted on the laptop, runtime on the Pi</label>
+        <div class="step-d">The laptop exports YOLO11n to ONNX (<code>yolo11n-320.onnx</code>, <code>yolo11n-640.onnx</code>), so the Pi needs no PyTorch — ~70 MB to download instead of ~400 MB. Everything is in <code>~/detect/</code>.
+        <div class="cmd"><pre># Pi
+python3 -m venv ~/detect/.venv
+~/detect/.venv/bin/pip install onnxruntime opencv-python-headless numpy
+# laptop: copy the script and models across
+scp pi_detect.py yolo11n-320.onnx yolo11n-640.onnx pi@pi5drone.local:detect/</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="e3"><div class="step-b"><label for="e3" class="step-t">Check, then run</label>
+        <div class="step-d">Reads <code>/cam</code> from MediaMTX, publishes boxes to <code>/detect</code> through <code>ffmpeg</code>.
+        <div class="cmd"><pre>cd ~/detect &amp;&amp; .venv/bin/python pi_detect.py --test 50      # prints fps and what it saw
+cd ~/detect &amp;&amp; .venv/bin/python pi_detect.py                # live; --model yolo11n-640.onnx for accuracy (5 fps)</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="e4"><div class="step-b"><label for="e4" class="step-t">A fan is required</label>
+        <div class="step-d">
+        <div class="note crit" style="margin:8px 0"><span class="note-h">Without one it throttles</span>No cooler: flat out and 10 fps both reached 85 °C and hard-throttled (<code>throttled=0xe0006</code>). 5 fps held 74–82 °C. With the fan on the Pi's fan header (~5,400 rpm under load): 15 fps at 66–69 °C.</div>
+        ONNX Runtime threads busy-wait by default, so a frame cap saved no CPU until <code>allow_spinning=0</code> was set (250% → 150% CPU). Check with <code>vcgencmd measure_temp</code>, <code>vcgencmd get_throttled</code>, and the fan at <code>/sys/devices/platform/cooling_fan/hwmon/*/fan1_input</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="e5"><div class="step-b"><label for="e5" class="step-t">As a service — start-at-boot currently paused</label>
+        <div class="cmd"><pre>sudo cp ~/detect/pi-detect.service /etc/systemd/system/
+sudo systemctl enable --now pi-detect      # at boot + now
+sudo systemctl disable pi-detect           # off at boot (current setting)
+sudo systemctl stop pi-detect              # free the CPU, e.g. for Hailo tests
+sudo systemctl restart pi-detect           # the only safe way to restart it (closes the Hailo)</pre></div>
+        Every run also writes a flight log to <code>~/detect/logs/</code> — see D.0.</div></li>
+    </ol>
+  </section>
+
+  <!-- ================= PHASE 1 ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">PHASE 1</span>
+      <h2>Hailo — detection off the CPU</h2>
+      <div class="part-when"><span class="pill ok">Done</span> 2026-09-28 with the <b>AI HAT+ 13 TOPS</b> (Hailo-8L soldered on). <code>/cam</code> and <code>/detect</code> kept their addresses; only what fills <code>/detect</code> changed.</div>
+    </div>
+    <div class="note ok"><span class="note-h">Result</span>
+      PCIe <b>8.0 GT/s x1</b> (Gen 3, set by the HAT itself) · <code>HAILO8L</code>, firmware 4.23.0 · chip benchmark YOLOv8s <b>58.8 fps</b>.
+      Live <code>/detect</code>: <b>~30 fps</b>, detection process 50–70 % CPU (CPU version: 150–250 %).
+      10-minute soak: 60/60 readings running, 0 restarts, <code>throttled=0x0</code>, 54.9–59.8 °C, fan 2,350–4,375 rpm, 5.05–5.16 V.
+      On <code>bus.jpg</code> it matches official YOLOv8s: same 5 objects, scores within 0.02, boxes within a few pixels.
+    </div>
+    <div class="tw"><table><tbody>
+      <tr><td><b>Speed</b></td><td>YOLOv8n at 640×640 runs 30+ fps on a Hailo-8L; end to end lands at 25–60 fps.</td></tr>
+      <tr><td><b>Power</b></td><td>Hailo-8L ~2.5 W under load, Pi 5 5–8 W — 10–12 W together. Still a 5 V / 5 A supply for headroom.</td></tr>
+      <tr><td><b>Resolution</b></td><td>The detector sees 640×640 whatever the camera sends. Extra resolution is for the human feed, not the model.</td></tr>
+    </tbody></table></div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="r1"><div class="step-b"><label for="r1" class="step-t">Stop the CPU detector and MediaMTX</label>
+        <div class="step-d"><code>sudo systemctl disable --now pi-detect</code>, and for the demos below <code>sudo systemctl stop mediamtx</code> — they need the camera.</div></div></li>
+      <li class="step"><input type="checkbox" id="k11"><div class="step-b"><label for="k11" class="step-t">Fit the HAT with the Pi powered off</label>
+        <div class="step-d">It sits over the cooler on the supplied spacers — check the fan still has clearance. The <b>AI Kit</b> is an M.2 board with a separate Hailo module; the <b>AI HAT+</b> has the chip soldered on.</div></div></li>
+      <li class="step"><input type="checkbox" id="k12"><div class="step-b"><label for="k12" class="step-t">Install the software, check the chip is seen</label>
+        <div class="step-d">
+        <div class="cmd"><pre>sudo apt update &amp;&amp; sudo apt full-upgrade -y &amp;&amp; sudo rpi-eeprom-update -a &amp;&amp; sudo reboot
+sudo apt install -y dkms hailo-all &amp;&amp; sudo reboot
+hailortcli fw-control identify          # expect HAILO8L</pre></div>
+        <div class="note warn" style="margin:8px 0"><span class="note-h">Pick the right package</span><code>hailo-all</code> = Hailo-8 / 8L (HailoRT 4.x). <code>hailo-h10-all</code> is HailoRT 5 for the Hailo-10H — do not install it; the two conflict.</div>
+        AI Kit only: add <code>dtparam=pciex1_gen=3</code> to <code>/boot/firmware/config.txt</code> and reboot. The AI HAT+ does this itself. Pre-compiled models: <code>/usr/share/hailo-models/</code> — use the <code>_h8l</code> files.</div></div></li>
+      <li class="step"><input type="checkbox" id="k19"><div class="step-b"><label for="k19" class="step-t">First check on the Pi's own screen</label>
+        <div class="step-d">Proves the Hailo and model before streaming is involved. Run in a terminal on the Pi desktop (HDMI), not over SSH.
+        <div class="cmd"><pre>rpicam-hello -t 0 --post-process-file /usr/share/rpi-camera-assets/hailo_yolov8_inference.json</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="k13"><div class="step-b"><label for="k13" class="step-t">Quick stream with detection</label>
+        <div class="step-d">The 0.4 command plus detection; the model runs on a 640×640 copy made by the camera hardware. Viewer unchanged.
+        <div class="cmd"><pre>rpicam-vid -t 0 -n --inline --intra 15 --low-latency --bitrate 3000000 \
+  --width 1280 --height 720 --framerate 30 --rotation 180 \
+  --lores-width 640 --lores-height 640 \
+  --autofocus-mode manual --lens-position 0 \
+  --post-process-file /usr/share/rpi-camera-assets/hailo_yolov8_inference.json \
+  -o udp://&lt;laptop-ip&gt;:5600</pre></div>
+        Boxes piled in the top-left corner: an old <code>rpicam-vid</code> bug (#713), fixed in September 2024 — <code>sudo apt full-upgrade</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="r2"><div class="step-b"><label for="r2" class="step-t">Make it permanent: swap only the detector in <code>pi_detect.py</code></label>
+        <div class="step-d">Done: <code>pi_detect.py</code> has a <code>HailoDetector</code> beside the CPU one and picks by file — <code>.hef</code> → Hailo (default when <code>/dev/hailo0</code> exists), <code>.onnx</code> → CPU. Model <code>yolov8s_h8l.hef</code>; NMS runs on the chip, so the output is already boxes per class. MediaMTX keeps the camera, so none of this needs it stopped.
+        <div class="cmd"><pre>sed -i "s/^include-system-site-packages = false/include-system-site-packages = true/" ~/detect/.venv/pyvenv.cfg
+cd ~/detect &amp;&amp; .venv/bin/python pi_detect.py --image bus.jpg     # one image
+cd ~/detect &amp;&amp; .venv/bin/python pi_detect.py --test 150        # live feed, prints fps</pre></div>
+        The first line lets the venv see Hailo's <code>python3-hailort</code> (a system package); the venv's own numpy 2.5 works with it. Hailo objects left to Python's own teardown close in the wrong order and segfault at exit (code 139) — <code>HailoDetector.close()</code> runs from <code>atexit</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="k14"><div class="step-b"><label for="k14" class="step-t">Measure the load while it runs</label>
+        <div class="cmd"><pre>vcgencmd measure_temp &amp;&amp; vcgencmd pmic_read_adc EXT5V_V &amp;&amp; vcgencmd get_throttled</pre></div></div></li>
+      <li class="step"><input type="checkbox" id="r3"><div class="step-b"><label for="r3" class="step-t">Gate: 30 fps boxes for 10 minutes, cool and unthrottled</label>
+        <div class="step-d">About 5.1 V, <code>throttled=0x0</code>, a temperature that levels off — passed (Result above). At boot: <code>sudo systemctl enable --now pi-detect</code>; the service file is unchanged, the script picks the Hailo itself.</div></div></li>
+    </ol>
+    <div class="tw"><table><thead><tr><th>If this happens</th><th>It means</th></tr></thead><tbody>
+      <tr><td><code>hailortcli</code> finds no device</td><td>PCIe ribbon not seated or reversed. <code>lspci</code> should mention Hailo; if not, power off and reseat.</td></tr>
+      <tr><td><code>lspci</code> sees it, <code>hailortcli</code> fails</td><td>Driver did not build: <code>sudo apt install --reinstall hailo-all</code>, reboot.</td></tr>
+      <tr><td>Post-process file missing</td><td>Packages incomplete. <code>ls /usr/share/rpi-camera-assets/</code>, reinstall.</td></tr>
+      <tr><td>Stream works, no boxes</td><td>Nothing it knows is in view — try a person, chair or cup (80 COCO classes).</td></tr>
+      <tr><td>Camera busy / "device in use"</td><td>MediaMTX or <code>pi-detect</code> still running.</td></tr>
+    </tbody></table></div>
+    <div class="rec">
+      <label>EXT5V_V, detecting<input data-rec="k_v" placeholder="V"></label>
+      <label>Temp, detecting<input data-rec="k_temp" placeholder="°C"></label>
+      <label>throttled<input data-rec="k_thr" placeholder="0x0"></label>
+      <label>Hailo fps<input data-rec="k_fps" placeholder="fps"></label>
+    </div>
+  </section>
+
+  <!-- ================= PHASE 2 ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">PHASE 2</span>
+      <h2>AR0234 — the global-shutter camera</h2>
+      <div class="part-when">
+        Preparation can start now; the rest when the board arrives. Stop at the first failure — each step
+        assumes the one above passed. Several steps exist to stop you powering a board that would be damaged by it.
+      </div>
+    </div>
+
+    <div class="tw"><table><thead><tr><th></th><th>AR0234 board</th><th>Camera Module 3 (now)</th></tr></thead><tbody>
+      <tr><td>Sensor</td><td class="n">AR0234CS 1920×1200</td><td class="n">Sony IMX708 4608×2592</td></tr>
+      <tr><td>Shutter</td><td><span class="pill ok">Global</span> truthful geometry, no jello</td><td><span class="pill warn">Rolling</span> jello under vibration</td></tr>
+      <tr><td>Colour</td><td><span class="pill warn">Mono</span> some loss on colour-trained models</td><td><span class="pill ok">Colour</span></td></tr>
+      <tr><td>Lens</td><td>M12 of your choice — wide is possible</td><td>75° diagonal, fixed (Wide variant 120°)</td></tr>
+      <tr><td>Lanes on the Pi 5</td><td>4 — up to 120 fps at 1920×1200</td><td>2</td></tr>
+      <tr><td>Driver</td><td>Kurokesu DKMS + two overlays, one hand-written</td><td>in-tree, auto-detected</td></tr>
+    </tbody></table></div>
+    <p class="muted" style="font-size:13.5px">For plain detection the two trade; global shutter becomes necessary once anything measures from the frames — distance, tracking, avoidance.</p>
+
+    <h3>2.1 Software, before the board arrives <span class="h3-tag">card B</span></h3>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="s1"><div class="step-b"><label for="s1" class="step-t">A second SD card, fresh 64-bit OS</label>
+        <div class="step-d">The Kurokesu repository replaces stock <code>rpicam-apps</code> and <code>libcamera</code> with its own forks. Keep it off card A, which runs everything in Phase 0.</div></div></li>
+      <li class="step"><input type="checkbox" id="s2"><div class="step-b"><label for="s2" class="step-t">Install the driver, and re-check encoding with the CM3</label>
+        <div class="step-d">The driver already matches this board: I²C 0x10, 24 MHz clock, mono auto-detect, optional reset GPIO.
+        <div class="cmd"><pre>curl -fsSLO https://apt.kurokesu.com/setup.sh &amp;&amp; sudo sh setup.sh
+sudo apt update
+sudo apt install -y ar0234-rpi-dkms rpicam-apps device-tree-compiler</pre></div>
+        Then re-run the 0.2 encoder check with the CM3: the fork replaces the stock apps, and nothing guarantees it can software-encode on a Pi 5 (it needs libav).</div></div></li>
+      <li class="step"><input type="checkbox" id="s3"><div class="step-b"><label for="s3" class="step-t">Build and install the power-timing overlay</label>
+        <div class="step-d">
+        <div class="note warn" style="margin:8px 0"><span class="note-h">Why this exists</span>
+        <code>EN_RAW</code> starts an RC cascade (+2V8 → +1V8 → clock → +1V2 → reset release) of up to ~25 ms. The driver waits 6.2 ms. Without the overlay you get an intermittent <code>failed to read chip id</code> that looks exactly like a bad I²C bus.</div>
+        <div class="note ok" style="margin:8px 0"><span class="note-h">Pi 5 version — compiled and merge-tested 2026-09-28</span>Use <code>pi5-fpv-bringupr0234-gamuda-power-overlay.dts</code>. The original targeted only <code>cam1_reg</code> (on CM4 that covers both ports); on the Pi 5 <code>cam0_reg</code> and <code>cam1_reg</code> are separate, so the Pi 5 version sets both — the board is covered on either connector. Compiles (741 bytes), merges onto <code>bcm2712-rpi-5-b.dtb</code>, both regulators get <code>0x88b8</code>, and <code>delay-us</code> sets both.</div>
+        <div class="cmd"><pre>dtc -@ -I dts -O dtb -o ar0234-gamuda-power.dtbo ar0234-gamuda-power-overlay.dts
+sudo cp ar0234-gamuda-power.dtbo /boot/firmware/overlays/</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="s4"><div class="step-b"><label for="s4" class="step-t">Edit <code>/boot/firmware/config.txt</code></label>
+        <div class="step-d">Order matters: the second overlay adds a property to a node the first relies on.
+        <div class="note crit" style="margin:8px 0"><span class="note-h">This Pi's CAM1 connector is faulty — use CAM0</span>2026-09-28: on CAM1 the camera was detected but every stream start failed (<code>imx708: Failed to write reg 0x0100. error = -5</code>). The same cable on CAM0 works. Hence <code>,cam0</code> below.</div>
+        <div class="cmd"><pre>camera_auto_detect=0
+
+[all]
+dtoverlay=ar0234,4lane,cam0
+dtoverlay=ar0234-gamuda-power</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="s5"><div class="step-b"><label for="s5" class="step-t">Verify the merge <em>before</em> rebooting</label>
+        <div class="cmd"><pre>dtmerge /boot/firmware/bcm2712-rpi-5-b.dtb /tmp/m.dtb \
+        /boot/firmware/overlays/ar0234.dtbo 4lane=true \
+&amp;&amp; dtmerge /tmp/m.dtb /tmp/m2.dtb \
+        /boot/firmware/overlays/ar0234-gamuda-power.dtbo \
+&amp;&amp; dtc -I dtb -O dts /tmp/m2.dtb | grep enable-ramp-delay</pre></div>
+        <div class="step-d">Must print <code>regulator-enable-ramp-delay = &lt;0x88b8&gt;;</code> — 35000 µs. Anything else means a fragment did not land.</div></div></li>
+      <li class="step"><input type="checkbox" id="s6"><div class="step-b"><label for="s6" class="step-t">Reboot with no camera attached — the error is the pass</label>
+        <div class="step-d">
+        <div class="cmd"><pre>dmesg | grep -i ar0234</pre></div>
+        <div class="tw" style="margin:8px 0"><table><thead><tr><th>dmesg says</th><th>Meaning</th></tr></thead><tbody>
+        <tr><td><code>failed to read chip id</code></td><td><span class="pill ok">Expected</span> overlay, regulator and clock all resolved; a real bus transaction was tried</td></tr>
+        <tr><td>Nothing at all</td><td>Overlay not applied, or <code>camera_auto_detect</code> still 1</td></tr>
+        <tr><td><code>failed to get regulators</code></td><td>The regulator fragment did not resolve</td></tr>
+        <tr><td><code>failed to enable clock</code></td><td>Clock fragment missing</td></tr>
+        </tbody></table></div></div></div></li>
+    </ol>
+
+    <h3>2.2 Cable <span class="h3-tag">before any power</span></h3>
+    <p>J1 is a Hirose FH12-22S-0.5SH, the same 22-pin 0.5 mm format as the Pi 5's CAM/DISP connectors: a <b>22-to-22 cable, pin for pin</b>, no remapping.</p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="k18"><div class="step-b"><label for="k18" class="step-t">Get a 22-to-22 camera cable, as short as reaches</label>
+        <div class="step-d">FFCs come with contacts on the same side at both ends, or opposite sides. J1 is bottom-contact, so the exposed contacts must face the PCB pads — which kind you need depends on how the cable folds; continuity tells you. Official lengths 200, 300, 500 mm: shorter is more MIPI margin at four lanes.</div></div></li>
+      <li class="step"><input type="checkbox" id="c2"><div class="step-b"><label for="c2" class="step-t">Kapton tape over contact 18 at the camera end</label>
+        <div class="step-d">
+        <div class="note crit" style="margin:8px 0"><span class="note-h">Two outputs on one net</span>
+        The AR0234 drives <code>FLASH</code> <em>out</em> on J1.18, which is CAM_IO1 on the Pi 5 — the host may drive it too. This is the fault that can damage a part on first power-on rather than merely not work.</div>
+        A sliver of Kapton opens that one contact; reversible, and <code>FLASH</code> stays available on <strong>J2 pin 1</strong>. To measure instead: with the cable in the Pi only, a 10 kΩ from contact 18 to +3V3 (contact 22) should pull it up toward 3.3 V; if it stays near 0 V or is a stiff 3.3 V, something drives it — tape it.</div></div></li>
+      <li class="step"><input type="checkbox" id="c3"><div class="step-b"><label for="c3" class="step-t">Continuity-check every conductor</label>
+        <div class="step-d">Both boards unpowered. Straight through, 1 to 1:
+        <div class="tw" style="margin:8px 0"><table><thead><tr><th>Contacts</th><th>Net</th></tr></thead><tbody>
+        <tr><td class="n">1–10</td><td>GND, DATA0±, DATA1±, CLK±</td></tr>
+        <tr><td class="n">11–16</td><td>DATA2±, DATA3±, GND — used: four lanes on the Pi 5</td></tr>
+        <tr><td class="n">17</td><td>EN_RAW — camera enable (CAM_IO0)</td></tr>
+        <tr><td class="n">18</td><td>FLASH — <span class="pill crit">taped</span>, so open</td></tr>
+        <tr><td class="n">19</td><td>GND</td></tr>
+        <tr><td class="n">20 / 21</td><td>SCL / SDA</td></tr>
+        <tr><td class="n">22</td><td>+3V3</td></tr>
+        </tbody></table></div></div></div></li>
+      <li class="step"><input type="checkbox" id="c4"><div class="step-b"><label for="c4" class="step-t">No continuity from +3V3 to GND</label>
+        <div class="step-d">Stop if anything differs from the table. A reversed cable can put 3.3 V onto a signal or ground pin and take out both boards.</div></div></li>
+    </ol>
+
+    <h3>2.3 First power-on <span class="h3-tag">meter and scope, before software</span></h3>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="p1"><div class="step-b"><label for="p1" class="step-t">Visual inspection, then seat the FFC</label>
+        <div class="step-d">Solder bridges, U1 orientation, nothing lifted. Contacts toward the pads, square, latched at both ends.</div></div></li>
+      <li class="step"><input type="checkbox" id="p2"><div class="step-b"><label for="p2" class="step-t">J1.22 reads about 3.3 V, and EN_RAW goes high</label></div></li>
+      <li class="step"><input type="checkbox" id="p3"><div class="step-b"><label for="p3" class="step-t">Rails come up 2.8 V, 1.8 V, 1.2 V — <em>in that order</em></label>
+        <div class="step-d">Together they can latch up: heavy current until power is removed. D1 (BAT54C) with R12 and R13 enforces the order. One four-channel capture settles it.</div></div></li>
+      <li class="step"><input type="checkbox" id="p4"><div class="step-b"><label for="p4" class="step-t">EXTCLK is 24.000 MHz, and nothing is hot</label></div></li>
+      <li class="step"><input type="checkbox" id="p5"><div class="step-b"><label for="p5" class="step-t">Capture the real rail timing</label>
+        <div class="step-d">The dossier says 100 ms per rail; the fitted RCs (R12 100 k / C12 100 n, R13 100 k / C13 330 n) give ~3.4 and ~15.6 ms, which the 35 ms overlay delay is sized for. One capture says which is real.</div></div></li>
+    </ol>
+    <div class="rec">
+      <label>+3V3 in<input data-rec="v33" placeholder="V"></label>
+      <label>+2V8<input data-rec="v28" placeholder="V"></label>
+      <label>+1V8<input data-rec="v18" placeholder="V"></label>
+      <label>+1V2<input data-rec="v12" placeholder="V"></label>
+      <label>EXTCLK<input data-rec="clk" placeholder="MHz"></label>
+      <label>Rail settle<input data-rec="ramp" placeholder="ms"></label>
+    </div>
+
+    <h3>2.4 Driver and formats</h3>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="d1"><div class="step-b"><label for="d1" class="step-t">Chip ID reads <code>0x1a56</code></label>
+        <div class="step-d"><code>dmesg | grep -i ar0234</code> → <code>Success reading chip id: 0x1a56</code>. The <b>1</b> is the mono flag; <code>0x0a56</code> would mean a colour part was fitted instead of <code>AR0234CSSM00SUKA0-CP</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="d2"><div class="step-b"><label for="d2" class="step-t">Subdev appears and links</label>
+        <div class="cmd"><pre>v4l2-ctl --list-devices
+media-ctl -p</pre></div></div></li>
+      <li class="step"><input type="checkbox" id="d3"><div class="step-b"><label for="d3" class="step-t">Bus format is <code>Y10</code>, not <code>SGRBG10</code></label>
+        <div class="step-d">A Bayer code means the wrong sensor variant — check the part before chasing software. A missing tuning file lives under <code>/usr/share/libcamera/ipa/rpi/pisp/</code> on the Pi 5.
+        <div class="cmd"><pre>v4l2-ctl -d /dev/v4l-subdev0 --list-subdev-mbus-codes 0</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="d4"><div class="step-b"><label for="d4" class="step-t">Local preview holds at 720p30</label>
+        <div class="cmd"><pre>rpicam-hello -t 0 --width 1280 --height 720 --framerate 30</pre></div></div></li>
+      <li class="step"><input type="checkbox" id="d5"><div class="step-b"><label for="d5" class="step-t">Settle rotation from the first image</label>
+        <div class="step-d">Upstream hard-codes <code>rotation=&lt;180&gt; orientation=&lt;2&gt;</code> for a different mount. Fix it on the boot line: <code>dtoverlay=ar0234,4lane,rotation=0,orientation=1</code>.</div></div></li>
+    </ol>
+    <div class="rec">
+      <label>Chip ID<input data-rec="chip" placeholder="0x1a56"></label>
+      <label>Bus format<input data-rec="fmt" placeholder="Y10"></label>
+      <label>rotation<input data-rec="rot" placeholder="0 / 180"></label>
+      <label>orientation<input data-rec="ori" placeholder="1 / 2"></label>
+    </div>
+
+    <h3>2.5 Stream it, and pass the gates again</h3>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="r5"><div class="step-b"><label for="r5" class="step-t">Into MediaMTX</label>
+        <div class="step-d">
+        <div class="note warn" style="margin:8px 0"><span class="note-h">Likely snag</span>MediaMTX ships its own libcamera, which may not know the AR0234. If <code>/cam</code> will not start with <code>source: rpiCamera</code>, change it to <code>source: publisher</code> and feed it from the Kurokesu <code>rpicam-vid</code>:</div>
+        <div class="cmd"><pre>rpicam-vid -t 0 -n --inline --intra 15 --width 1280 --height 720 --framerate 30 -o - \
+| ffmpeg -f h264 -i - -c copy -f rtsp rtsp://127.0.0.1:8554/cam</pre></div>
+        Both pages, detection and the laptop stay the same.</div></div></li>
+      <li class="step"><input type="checkbox" id="t1"><div class="step-b"><label for="t1" class="step-t">Ten-minute soak at 720p30 with no errors</label>
+        <div class="step-d">No frame timeout, no CRC/ECC errors, no breakup, no reset — and detected again after a cold boot. Latency with <code>latency-test.html</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="k17"><div class="step-b"><label for="k17" class="step-t">Benchmark detection on greyscale</label>
+        <div class="step-d">Stock YOLO weights are trained on colour. Run detection on the same scene with both cameras and compare what it finds on your own objects.</div></div></li>
+      <li class="step"><input type="checkbox" id="t2"><div class="step-b"><label for="t2" class="step-t">Decide whether more resolution is worth it</label>
+        <div class="step-d">1080p is ~6–8 Mbit/s against 3, and software encoding costs more CPU. A ground-station screen barely shows the difference; the bitrate saved buys link margin.</div></div></li>
+      <li class="step"><input type="checkbox" id="t3"><div class="step-b"><label for="t3" class="step-t">Only if you see tearing at range — RTP</label>
+        <div class="step-d">Raw H.264 in UDP has no loss structure; RTP fragments on frame boundaries. MediaMTX already serves RTSP/RTP and WebRTC, so try those pages first.</div></div></li>
+      <li class="step"><input type="checkbox" id="t4"><div class="step-b"><label for="t4" class="step-t">Optional — record on the ground</label>
+        <div class="step-d">Copy, not re-encode — the file is exactly what the air sent.
+        <div class="cmd"><pre>ffmpeg -rtsp_transport tcp -i rtsp://pi5drone.local:8554/cam -c copy flight.mkv</pre></div></div></div></li>
+    </ol>
+  </section>
+
+  <!-- ================= PHASE 3 ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">PHASE 3</span>
+      <h2>LiDAR — distance</h2>
+      <div class="part-when">Sensor chosen: <b>ST VL53L5CX</b> (SATEL breakout) — 8×8 time-of-flight grid, I²C, up to ~4 m. It goes <b>sensor → Pi → FC</b>: ArduPilot does not read it directly. The camera says <em>what</em>; the sensor says <em>how far</em>.</div>
+    </div>
+    <div class="tw"><table><thead><tr><th>Kind</th><th>Examples</th><th>Gives</th><th>Connects by</th></tr></thead><tbody>
+      <tr><td><b>Single-point</b></td><td>Benewake TF-Luna, TFmini-S</td><td>One distance, straight ahead</td><td>UART or I²C · cheapest · forward only</td></tr>
+      <tr><td><b>360° scanning</b></td><td>Slamtec RPLIDAR A1 / A2 / C1</td><td>Distances all around, in one plane</td><td>USB-serial · what ArduPilot uses for all-round avoidance</td></tr>
+    </tbody></table></div>
+    <div class="note warn">
+      <span class="note-h">Where it plugs in decides who is in the safety loop</span>
+      <b>LiDAR → FC directly:</b> ArduPilot reads it natively and avoids on its own; the Pi is not needed for
+      avoidance to work — simplest and safest.<br>
+      <b>LiDAR → Pi:</b> the Pi combines it with detection ("a person, 3 m ahead") and sends the result to the FC.
+      More capable, but a Pi crash takes avoidance with it.<br><br>
+      <b>Plan:</b> LiDAR → FC first, then the Pi adds the camera's knowledge as a second, separate obstacle
+      source. ArduPilot accepts more than one.
+    </div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="r7"><div class="step-b"><label for="r7" class="step-t">Confirm the FC runs ArduPilot or PX4</label>
+        <div class="step-d">They accept obstacle data over MAVLink; Betaflight does not. Ask the team before buying anything (see On the drone → FC firmware).</div></div></li>
+      <li class="step"><input type="checkbox" id="r8"><div class="step-b"><label for="r8" class="step-t">Mount the LiDAR in line with the camera</label>
+        <div class="step-d">Its view must cover what the camera sees. Measure the angle between them once — the Pi needs it to match a box in the picture to a distance.</div></div></li>
+      <li class="step"><input type="checkbox" id="r9"><div class="step-b"><label for="r9" class="step-t">Gate: readings match a tape measure</label>
+        <div class="step-d">At 1, 3 and 5 m on the bench, steady for 10 minutes.</div></div></li>
+    </ol>
+  </section>
+
+  <!-- ================= PHASE 4 ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">PHASE 4</span>
+      <h2>Obstacle avoidance</h2>
+      <div class="part-when">After Phases 1–3 pass. The Pi reports; the flight controller decides and flies.</div>
+    </div>
+    <div class="tw"><table><tbody>
+      <tr><td><b>Link</b></td><td>The J11 UART, three wires, speaking MAVLink (On the drone → FC link).</td></tr>
+      <tr><td><b>What the Pi sends</b></td><td><code>OBSTACLE_DISTANCE</code> — distances in 72 sectors around the drone — or one <code>DISTANCE_SENSOR</code> message per sensor.</td></tr>
+      <tr><td><b>What the FC does</b></td><td>ArduPilot: in Loiter and AltHold it stops or slides before an obstacle; in Auto/Guided it paths around (BendyRuler). Parameters to look at: <code>AVOID_ENABLE</code>, <code>PRX1_TYPE</code> (MAVLink when the Pi is the source), <code>OA_TYPE</code> — check names against the firmware version.</td></tr>
+      <tr><td><b>Why distance comes from the LiDAR</b></td><td>The camera path is ~150 ms plus detection. At 5 m/s, 0.3 s of delay is 1.5 m flown before any reaction. A LiDAR updates ~100 times a second, so it sets the reaction time; the camera says what the obstacle is.</td></tr>
+    </tbody></table></div>
+    <h3>Camera + distance sensor → one obstacle picture</h3>
+    <div class="tw"><table><thead><tr><th>Source</th><th>Gives</th><th>Limits</th></tr></thead><tbody>
+      <tr><td><b>Camera + YOLO</b></td><td><em>What</em> it is, <em>where</em> in the picture</td><td>No real distance — box size is only a rough guess</td></tr>
+      <tr><td><b>VL53L5CX</b></td><td><em>How far</em>, 8×8 zones, ~15 Hz</td><td>~4 m indoors, much less in bright sunlight</td></tr>
+    </tbody></table></div>
+    <p>Each YOLO box is matched to the zones it covers and takes the <b>nearest</b> distance there — "person, 1.8 m, slightly left". A close zone with no box still counts: "something at 0.9 m". <b>Distance decides whether to react; the camera only labels it.</b> The Pi sends the result as <code>OBSTACLE_DISTANCE</code>; ArduPilot slows, stops or slides (<code>AVOID_MARGIN</code> = how close, <code>AVOID_BEHAVE</code> = stop or slide).</p>
+    <div class="cmd"><pre>VL53L5CX (8×8) ─┐
+                ├─► Pi: combine → obstacle distance by direction ─► MAVLink ─► FC (ArduPilot)
+camera + YOLO ──┘      OBSTACLE_DISTANCE over the J11 UART                       │
+                                                                     brakes · slides · goes around</pre></div>
+
+    <h3>The sensor's range sets the top speed</h3>
+    <p>The drone must see the obstacle, react (~0.3 s of camera, detection and link delay), then brake (~3 m/s²):</p>
+    <div class="tw"><table><thead><tr><th>Speed</th><th>Flown while reacting</th><th>Braking</th><th>Must see it at</th></tr></thead><tbody>
+      <tr><td class="n">1 m/s</td><td class="n">0.3 m</td><td class="n">~0.2 m</td><td class="n">~0.5 m <span class="pill ok">OK</span></td></tr>
+      <tr><td class="n">2 m/s</td><td class="n">0.6 m</td><td class="n">~0.7 m</td><td class="n">~1.3 m <span class="pill ok">OK</span></td></tr>
+      <tr><td class="n">3 m/s</td><td class="n">0.9 m</td><td class="n">~1.5 m</td><td class="n">~2.4 m <span class="pill warn">indoors</span></td></tr>
+      <tr><td class="n">5 m/s</td><td class="n">1.5 m</td><td class="n">~4.2 m</td><td class="n">~5.7 m <span class="pill crit">beyond it</span></td></tr>
+    </tbody></table></div>
+    <p class="muted" style="font-size:13.5px">So the VL53L5CX suits slow flight, ~2–3 m/s, indoors or out of direct sun — right for learning and testing. For faster outdoor flight, a longer-range sensor (TF-Luna 8 m, TFmini-S 12 m); the Pi code and MAVLink link stay the same.</p>
+
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="r10"><div class="step-b"><label for="r10" class="step-t">Simulator first — ArduPilot SITL on the laptop</label>
+        <div class="step-d">Feed it the Pi's obstacle messages and watch it avoid on screen. Mistakes here cost nothing.</div></div></li>
+      <li class="step"><input type="checkbox" id="r11"><div class="step-b"><label for="r11" class="step-t">Bench, props off — the FC sees the obstacles</label>
+        <div class="step-d">QGroundControl or Mission Planner shows the proximity view: wave a box in front and check the right sector lights up. Confirm RC override and failsafe before anything spins.</div></div></li>
+      <li class="step"><input type="checkbox" id="r12"><div class="step-b"><label for="r12" class="step-t">Tethered low hover, open area, soft obstacle</label>
+        <div class="step-d">A cardboard box, walking pace, pilot ready. Only then real flights.</div></div></li>
+    </ol>
+  </section>
+
+  <!-- ================= ON THE DRONE ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">DRONE</span>
+      <h2>On the drone — power, radios, mounting, FC link</h2>
+      <div class="part-when">Can start any time after Phase 1, with whichever camera is fitted. Problems found on the bench cost an afternoon; in the air they cost an airframe.</div>
+    </div>
+
+
+    <h3>D.0 Bench → flight: what changes</h3>
+    <p>The bench proves the functions work. Flight needs them to keep working with no mains power, no office WiFi, heavy vibration and nobody able to touch the Pi — the problems met on the bench (a weak supply, a loose wire) get worse in the air.</p>
+    <div class="tw"><table><thead><tr><th></th><th>Bench now</th><th>In flight</th></tr></thead><tbody>
+      <tr><td><b>Power</b></td><td>5 A USB-C adapter</td><td>5 V / 5 A BEC from the LiPo, not the FC's 5 V rail — measured with motors spinning (D.2)</td></tr>
+      <tr><td><b>Network</b></td><td>Office WiFi + Tailscale</td><td>No office WiFi, often no internet: 5 GHz access point on the ground, pages by local IP; USB WiFi with an external antenna for range (D.1)</td></tr>
+      <tr><td><b>Wiring</b></td><td>Jumper wires</td><td>Soldered, taped or glued; camera ribbon strain-relieved (D.4)</td></tr>
+      <tr><td><b>Mounting</b></td><td>Taped to a box</td><td>Camera + sensor together, forward, soft-mounted, lens locked; the frame out of the sensor's view</td></tr>
+      <tr><td><b>Picture</b></td><td>Auto exposure</td><td>Short exposure, 1/250 s or faster, against motion blur (D.4)</td></tr>
+      <tr><td><b>Distance</b></td><td>Indoors, ~4 m</td><td>Much shorter in sunlight → fly 2–3 m/s, or a longer-range LiDAR later (Phase 4)</td></tr>
+      <tr><td><b>Heat</b></td><td>Open air + fan</td><td>Closed bay: keep the airflow path; <code>temp_c</code> in the flight log shows it</td></tr>
+      <tr><td><b>Weight</b></td><td>—</td><td>Pi 5 + HAT + cooler + camera + sensor ≈ 100–130 g: check the payload margin</td></tr>
+      <tr><td><b>Software</b></td><td>You watch the page</td><td>Starts unattended at power-on (done), writes a flight log (below), survives a pulled battery (D.4, SD image)</td></tr>
+      <tr><td><b>Avoidance</b></td><td>Shows distances</td><td>Sends obstacles to the FC over MAVLink; the FC decides, the pilot overrides (Phase 4)</td></tr>
+    </tbody></table></div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="fp1"><div class="step-b"><label for="fp1" class="step-t">Order of work</label>
+        <div class="step-d">1 — FC firmware confirmed (ArduPilot/PX4; D.5). 2 — Phase 4 on the bench: J11 link, MAVLink distances, simulator, proximity view in QGC — no flying. 3 — Flight hardware: BEC, soldered wiring, mount, ground access point. 4 — Motors running, props off (D.3). 5 — Tethered low hover → slow short flights → avoidance tests. The AR0234 slots in whenever it arrives; it only swaps the camera.</div></div></li>
+      <li class="step"><input type="checkbox" id="fp2"><div class="step-b"><label for="fp2" class="step-t">Flight log — what the drone saw, after every test</label>
+        <div class="step-d"><code>pi_detect.py</code> writes one CSV per run to <code>~/detect/logs/</code> (<code>YYYYMMDD-HHMMSS.csv</code>), a row per processed frame (~30 a second, ~8 MB an hour):
+        <div class="cmd"><pre>time,t_s,fps,nearest_m,temp_c,detections
+11:14:00,14.54,29.9,0.10,58.4,banana 0.42 0.20m
+11:14:00,14.58,29.9,0.10,58.4,</pre></div>
+        <code>t_s</code> = seconds since start — the clock to trust, because with no internet in the field the Pi's date can be wrong. <code>detections</code> = <code>name confidence distance</code> per object, <code>-</code> when the sensor has nothing under the box. Line-buffered: a pulled battery loses at most the last line. Copy them to the laptop after a session:
+        <div class="cmd"><pre>scp "pi@pi5drone:detect/logs/*.csv" .</pre></div>
+        Off with <code>--no-log</code>; another folder with <code>--log-dir</code>. Open in Excel, or plot <code>nearest_m</code> against <code>t_s</code>.</div></div></li>
+    </ol>
+
+    <h3>D.1 Radio links — video never goes through the FC</h3>
+    <div class="note warn">
+      <span class="note-h">Two links, not one</span>
+      A flight controller is an STM32-class microcontroller with no camera input, no video encoder, and a radio
+      carrying telemetry at <strong>kilobits</strong> per second where video needs <strong>megabits</strong>. The
+      links stay separate and meet <em>at the laptop</em>: QGroundControl draws telemetry from the FC's radio and
+      video from the Pi's stream in one window. Lose video and you still fly.
+    </div>
+    <div class="cmd"><pre>  FC  --UART--&gt; SX1281 datalink --2.4 GHz-------&gt;  \
+                                                    &gt;--  laptop · QGroundControl
+  Pi  --H.264 over WiFi · 5 GHz · Mbit/s------&gt;    /</pre></div>
+    <p>The team's datalink (from its BOM) cannot carry video, and does not need to:</p>
+    <div class="tw"><table><tbody>
+      <tr><td class="n">U3</td><td class="n">SX1281IMLTRT</td><td>Semtech 2.4 GHz LoRa / FLRC / GFSK transceiver</td></tr>
+      <tr><td class="n">U1</td><td class="n">ESP32-C3</td><td>MCU bridging it</td></tr>
+      <tr><td class="n">TP1/TP2</td><td class="n">RX / TX</td><td><span class="pill warn">The data interface is a UART</span> — no IP stack, nothing for a video socket</td></tr>
+    </tbody></table></div>
+    <p class="muted" style="font-size:13.5px">Best case 2 Mbit/s raw (GFSK, close range), LoRa ~200 kbit/s at most — below the 3 Mbit/s stream before any overhead. It is an ExpressLRS-class telemetry/RC link: the right part for a different job. If the video link disappoints: a 5 GHz USB WiFi adapter with an external antenna, then lower bitrate or resolution, then the FC's own analogue camera + VTX path (J2/J8) as a floor.</p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="g1"><div class="step-b"><label for="g1" class="step-t">Video on 5 GHz, RC and datalink on 2.4 GHz</label>
+        <div class="step-d">Sharing one band degrades both, and losing RC costs far more than losing the picture. Put the access point <b>on the ground</b> — the Pi's PCB antenna should not be the one in charge.</div></div></li>
+      <li class="step"><input type="checkbox" id="g2"><div class="step-b"><label for="g2" class="step-t">Static IPs for the field</label>
+        <div class="step-d">On DHCP an address eventually changes and the failure is silent. With a travel router on the ground:
+        <div class="cmd"><pre>sudo nmcli con mod "&lt;wifi-name&gt;" ipv4.addresses 192.168.50.20/24 \
+  ipv4.gateway 192.168.50.1 ipv4.method manual
+sudo nmcli con up "&lt;wifi-name&gt;"</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="g7"><div class="step-b"><label for="g7" class="step-t">Range-walk it on foot</label>
+        <div class="step-d">Out to the distance you intend to fly, <strong>including your body between the antennas</strong> — it happens on every turn. Where it breaks up is your real range.</div></div></li>
+    </ol>
+    <div class="rec">
+      <label>GS address<input data-rec="gsip" placeholder="192.168.50.10"></label>
+      <label>Pi address<input data-rec="piip" placeholder="192.168.50.20"></label>
+    </div>
+
+    <h3>D.2 Power and cooling</h3>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="p5a"><div class="step-b"><label for="p5a" class="step-t">A BEC for the Pi: 5 V at 5 A, straight off the LiPo</label>
+        <div class="step-d">Not the FC's 5 V rail — that feeds the receiver and GPS, and the Pi would brown them out. The Hailo adds ~2.5 W; the AR0234 board ~250 mA off 3V3. Short, thick wires.</div></div></li>
+      <li class="step"><input type="checkbox" id="p5f"><div class="step-b"><label for="p5f" class="step-t">Tell the firmware the BEC is a 5 A supply — once measured</label>
+        <div class="step-d">A BEC does no USB-PD negotiation, so the Pi assumes a weak supply and caps USB at 600 mA — shared with a USB WiFi adapter. After <em>measuring</em> 5 V at 5 A:
+        <div class="cmd"><pre>sudo rpi-eeprom-config --edit        # add: PSU_MAX_CURRENT=5000</pre></div>
+        <div class="note crit" style="margin:8px 0"><span class="note-h">Never on a 3 A charger</span>That raises the limit without adding current; the whole board browns out instead.</div></div></div></li>
+      <li class="step"><input type="checkbox" id="p5b"><div class="step-b"><label for="p5b" class="step-t">Cooling in the closed bay</label>
+        <div class="step-d">The fan is required (0.7). A closed bay is hotter than the bench: 80 °C soft-throttles, 85 °C hard-throttles, and the symptom is stutter that looks like a bad link.</div></div></li>
+      <li class="step"><input type="checkbox" id="p5c"><div class="step-b"><label for="p5c" class="step-t">Payload budget</label>
+        <div class="step-d">Pi 5 + Hailo + cooler + PCIe ribbon + LiDAR is real weight.</div></div></li>
+    </ol>
+
+    <h3>D.3 Bench integration — props off</h3>
+    <div class="note crit"><span class="note-h">Props off. All of it.</span>Nothing here needs propellers. Secure the airframe for anything that turns a motor.</div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="x1"><div class="step-b"><label for="x1" class="step-t">Bench supply off — the real LiPo and the real BEC</label>
+        <div class="step-d">A lab supply hides every brownout you are about to have.</div></div></li>
+      <li class="step"><input type="checkbox" id="x2"><div class="step-b"><label for="x2" class="step-t">Pi, camera, FC and datalink all on the flight pack</label></div></li>
+      <li class="step"><input type="checkbox" id="x3"><div class="step-b"><label for="x3" class="step-t">Every link up at the same time — RC, telemetry, video</label></div></li>
+      <li class="step"><input type="checkbox" id="x4"><div class="step-b"><label for="x4" class="step-t"><code>get_throttled</code> reads <code>0x0</code>, and the stream holds ten minutes</label></div></li>
+      <li class="step"><input type="checkbox" id="x5"><div class="step-b"><label for="x5" class="step-t">Ten cold boots — camera up on every one</label>
+        <div class="step-d">Intermittent failure is the rail-timing problem (2.1), worse cold and on a weak battery. <strong>Nine out of ten is a fail.</strong>
+        <div class="cmd"><pre>dmesg | grep -c 'Success reading chip id'</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="x6"><div class="step-b"><label for="x6" class="step-t">RC alone — range on foot</label></div></li>
+      <li class="step"><input type="checkbox" id="x7"><div class="step-b"><label for="x7" class="step-t">RC + datalink — range again</label></div></li>
+      <li class="step"><input type="checkbox" id="x8"><div class="step-b"><label for="x8" class="step-t">RC + datalink + WiFi video — range again</label>
+        <div class="step-d">If video shortens RC range, 2.4 GHz is crowded — video belongs on 5 GHz.</div></div></li>
+    </ol>
+    <div class="tw"><table><thead><tr><th>Motors spinning, props off — what you see</th><th>What it means</th></tr></thead><tbody>
+      <tr><td><code>get_throttled</code> goes non-zero</td><td>BEC sagging under motor current</td></tr>
+      <tr><td>Video breaks up as throttle rises</td><td>EMI into the ribbon, or supply noise. Re-route away from ESC wires</td></tr>
+      <tr><td>Telemetry drops at high throttle</td><td>RF desense, or 2.4 GHz crowding</td></tr>
+      <tr><td>Camera disappears from the bus</td><td>Brownout</td></tr>
+      <tr><td>Everything holds</td><td><span class="pill ok">Ready to mount</span></td></tr>
+    </tbody></table></div>
+    <div class="rec">
+      <label>throttled @ full<input data-rec="thr" placeholder="0x0"></label>
+      <label>Stream held<input data-rec="soak" placeholder="min"></label>
+      <label>Cold boots<input data-rec="boots" placeholder="/ 10"></label>
+      <label>RC range, video off<input data-rec="rng1" placeholder="m"></label>
+      <label>RC range, video on<input data-rec="rng2" placeholder="m"></label>
+      <label>Latency, on the drone<input data-rec="lat2" placeholder="ms"></label>
+    </div>
+
+    <h3>D.4 Mounting</h3>
+    <div class="cmd"><pre>  LiPo ──┬── FC  GAMUDA_EVT1 ──┬── J6   ESC / motors
+         │                     ├── J7   RC receiver ·· 2.4 GHz to your transmitter
+         │                     ├── J4   GPS + compass
+         │                     └── J11  ── TX/RX/GND ──┐   (3 wires, no power)
+         │                                             │
+         └── BEC ── 5 V / 5 A ── Pi 5 ─────────────────┘
+                                   ├── CSI ribbon ── camera        ├── Hailo (PCIe)
+                                   └── WiFi ── antenna outside the frame
+                                            │ 5 GHz
+                              [ AP on the ground ] ── laptop
+                                                        ├─ UDP/WebRTC  video
+                                                        └─ UDP 14550   telemetry</pre></div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="a3"><div class="step-b"><label for="a3" class="step-t">FFC latched, secured, with a service loop</label>
+        <div class="step-d">Flat-flex walks out under vibration and gives CRC errors that come and go with throttle. Re-check after every hard landing.</div></div></li>
+      <li class="step"><input type="checkbox" id="a3b"><div class="step-b"><label for="a3b" class="step-t">The ribbon carries no mechanical load</label>
+        <div class="step-d">Anchor it to the frame near each connector, slack loop between. The mount holds the camera; the cable only carries signal.</div></div></li>
+      <li class="step"><input type="checkbox" id="a3e"><div class="step-b"><label for="a3e" class="step-t">Shortest cable that reaches with that loop</label>
+        <div class="step-d">Matters most for the AR0234 at four lanes on traces already slightly narrow for 100 Ω. If a long cable gives CRC/ECC errors, first try <code>link-frequency=360000000</code> on the overlay line.</div></div></li>
+      <li class="step"><input type="checkbox" id="a3c"><div class="step-b"><label for="a3c" class="step-t">Ribbon away from ESC and motor wires</label>
+        <div class="step-d">Where they must meet, cross at 90°. Symptom: CRC/ECC errors that scale with throttle.</div></div></li>
+      <li class="step"><input type="checkbox" id="b6"><div class="step-b"><label for="b6" class="step-t">CM3: never glue the lens barrel</label>
+        <div class="step-d">Its focus is a voice coil. Bond to the PCB edges or mounting holes; cable-tie through the holes, never across the board face.</div></div></li>
+      <li class="step"><input type="checkbox" id="b7"><div class="step-b"><label for="b7" class="step-t">CM3: soft-mount it</label>
+        <div class="step-d">Rigid is fine for global shutter, the worst case for rolling. Foam tape, TPU or a cut earplug is the cheapest CM3 improvement there is.</div></div></li>
+      <li class="step"><input type="checkbox" id="a3d"><div class="step-b"><label for="a3d" class="step-t">Vibration, worked down in order</label>
+        <div class="step-d"><b>Shake</b> (whole image moves) · <b>jello</b> (wobble within a frame, CM3 only) · <b>smear</b> (blur during the exposure). Then: 1 — balance props, check bearings. 2 — cap exposure: <code>--shutter 4000 --gain 2</code> (1/250 s) clears smear, and smear is also what hurts detection most. 3 — soft-mount. 4 — CM3: binned modes (1280×720 already picks the fast 1536×864 mode). 5 — a gimbal. No live software stabilisation — no CPU to spare; stabilise recordings afterwards with ffmpeg <code>vidstab</code>.</div></div></li>
+      <li class="step"><input type="checkbox" id="a7"><div class="step-b"><label for="a7" class="step-t">Sharp frames for detection in flight — short exposure</label>
+        <div class="step-d">
+        <div class="tw" style="margin:8px 0"><table><thead><tr><th>Problem</th><th>Looks like</th><th>Fix</th></tr></thead><tbody>
+          <tr><td><b>Motion blur</b></td><td>Everything smeared</td><td><b>Shorter exposure</b> — the biggest win for detection</td></tr>
+          <tr><td><b>Vibration</b></td><td>Whole picture shakes</td><td>Balance props, soft-mount (step above)</td></tr>
+          <tr><td><b>Jello</b></td><td>Wobbly, bendy lines</td><td>Rolling shutter only — the AR0234's global shutter removes it</td></tr>
+        </tbody></table></div>
+        Global shutter does <em>not</em> fix motion blur; only exposure time does. In <code>~/mediamtx/cam.yml</code>:
+        <div class="cmd"><pre>    rpiCameraExposure: sport     # prefers short exposures
+    # or fixed:
+    rpiCameraShutter: 4000       # µs = 1/250 s; 2000 for fast flight
+    rpiCameraGain: 4             # brighter to make up for it (adds grain)</pre></div>
+        Go shorter until the smear is gone. Shorter means darker and grainier — easy in daylight, hard at dusk; YOLO copes with grain far better than smear. Focus locked at infinity (AR0234: set the M12 lens once, lock it with its nut or a dab of glue). In the detector, count an object as present when it appears in 3 of the last 5 frames, so one blurred frame does not make an obstacle blink out.</div></div></li>
+      <li class="step"><input type="checkbox" id="a4"><div class="step-b"><label for="a4" class="step-t">5 GHz antenna outside the frame</label>
+        <div class="step-d">Carbon fibre is RF-opaque. Plan on a USB adapter with an external antenna, and re-run the range walk fully assembled.</div></div></li>
+      <li class="step"><input type="checkbox" id="a5"><div class="step-b"><label for="a5" class="step-t">Everything starts on boot, with no SSH</label>
+        <div class="step-d">Already true for the stream (<code>mediamtx</code>) and detection (<code>pi-detect</code>, when enabled) — both <code>Restart=always</code>, which catches a camera that fails to probe on a marginal cold boot.</div></div></li>
+      <li class="step"><input type="checkbox" id="a6"><div class="step-b"><label for="a6" class="step-t">Keep a reflashable SD image</label>
+        <div class="step-d">Drones get switched off by pulling the battery, which corrupts ext4 eventually. Keep a known-good image; later, a read-only root.</div></div></li>
+    </ol>
+    <p class="muted" style="font-size:13.5px">Field of view is optics: the standard CM3 is 75° against 120–160° for typical FPV cameras. The Wide variant (120°), or a wide M12 lens on the AR0234 (image circle ≥ 6.8 mm, chief-ray angle near 28°), fixes it; no setting does.</p>
+
+    <div class="preflight">
+      <h3 style="margin-top:0">Pre-flight — every flight</h3>
+      <p class="muted" style="font-size:13.5px">Run each time; the build checkboxes stay ticked.</p>
+      <ol class="steps">
+        <li class="step"><input type="checkbox" id="f1"><div class="step-b"><label for="f1" class="step-t"><code>vcgencmd get_throttled</code> reads <code>0x0</code> after ten minutes powered</label></div></li>
+        <li class="step"><input type="checkbox" id="f2"><div class="step-b"><label for="f2" class="step-t">Picture live on the ground station, latency looks like the measured figure</label></div></li>
+        <li class="step"><input type="checkbox" id="f3"><div class="step-b"><label for="f3" class="step-t">FFC latches closed at both ends, tape intact</label></div></li>
+        <li class="step"><input type="checkbox" id="f4"><div class="step-b"><label for="f4" class="step-t">Video on 5 GHz, RC on 2.4 GHz, both confirmed before arming</label></div></li>
+      </ol>
+    </div>
+
+    <h3>D.5 FC firmware — settle this first</h3>
+    <p>It decides the OSD and whether avoidance is possible at all. <strong>Ask the team</strong>; failing that, plug USB-C into J1:</p>
+    <div class="tw"><table><thead><tr><th>What enumerates</th><th>Firmware</th></tr></thead><tbody>
+      <tr><td class="n">0483:5740 STMicroelectronics Virtual COM Port</td><td><b>Betaflight or INAV</b> — no obstacle avoidance</td></tr>
+      <tr><td>A product string naming the board, or <code>ArduPilot</code></td><td><b>ArduPilot</b> — everything here works as written</td></tr>
+      <tr><td class="n">0483:df11 STM Device in DFU Mode</td><td><b>Never flashed</b> — likely on EVT1; the choice is still open. Choose ArduPilot.</td></tr>
+    </tbody></table></div>
+
+    <h3>D.6 The flight controller — GAMUDA_EVT1</h3>
+    <div class="tw"><table><tbody>
+      <tr><td>MCU</td><td class="n">STM32H743VIT6 · LQFP-100</td></tr>
+      <tr><td>IMU</td><td class="n">ICM-42688-P (U8) + BMI270 (U10)</td></tr>
+      <tr><td>Baro · logging</td><td class="n">BMP388 (U12) · W25Q128JVSIQ 16 MB</td></tr>
+      <tr><td>OSD chip</td><td class="n">AT7456E (U13) — analogue video only; cannot touch the Pi's H.264 stream</td></tr>
+      <tr><td>CAN</td><td class="n">SN65HVD230 (U14)</td></tr>
+    </tbody></table></div>
+    <div class="tw"><table><thead><tr><th></th><th>Carries</th><th>For</th></tr></thead><tbody>
+      <tr><td class="n">J2</td><td class="n">GND, VIDEO_IN, nc, +5V</td><td>Analogue camera in</td></tr>
+      <tr><td class="n">J3</td><td class="n">+3V3, SWDIO, SWCLK, GND</td><td>SWD programming</td></tr>
+      <tr><td class="n">J4</td><td class="n">GND, GPS_TX/RX, GPS_SDA/SCL, +5V</td><td>GPS + compass</td></tr>
+      <tr><td class="n">J5</td><td class="n">+3V3, I2C1_SDA/SCL, GND</td><td>I²C</td></tr>
+      <tr><td class="n">J6</td><td class="n">M1–M4</td><td>ESC signal</td></tr>
+      <tr><td class="n">J7</td><td class="n">+5V, RC_RX, RC_TX, GND</td><td>RC receiver</td></tr>
+      <tr><td class="n">J8</td><td class="n">+PWR_OUT, VIDEO_OUT, VTX_TX, GND</td><td>Analogue VTX</td></tr>
+      <tr><td class="n">J9</td><td class="n">+PWR_OUT, GND, DJI_TX, DJI_RX, GND, DJI_SBUS</td><td>Digital VTX</td></tr>
+      <tr><td class="n">J10</td><td class="n">+3V3, CAN_N, CAN_P, GND</td><td>DroneCAN</td></tr>
+      <tr><td class="n"><b>J11</b></td><td class="n">nc, EXPANSION_RX, EXPANSION_TX, GND</td><td><span class="pill ok">Pi link</span></td></tr>
+    </tbody></table></div>
+
+    <h3>D.7 FC ↔ Pi link — J11</h3>
+    <p>The spare UART, and <strong>no power pin</strong> — three wires, each board keeps its own supply. JST-SH 1.0 mm 4-way pigtail.</p>
+    <div class="tw"><table><thead><tr><th>J11</th><th>Net</th><th>Pi 5</th></tr></thead><tbody>
+      <tr><td class="n">1</td><td><em>not connected</em></td><td>—</td></tr>
+      <tr><td class="n">2</td><td class="n">EXPANSION_RX — FC receives</td><td class="n">GPIO 14 / TXD — header pin 8</td></tr>
+      <tr><td class="n">3</td><td class="n">EXPANSION_TX — FC sends</td><td class="n">GPIO 15 / RXD — header pin 10</td></tr>
+      <tr><td class="n">4</td><td class="n">GND</td><td class="n">GND — header pin 6</td></tr>
+    </tbody></table></div>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="o1"><div class="step-b"><label for="o1" class="step-t">Enable the UART on GPIO 14/15</label>
+        <div class="step-d">On the Pi 5 the console has its own debug connector, so these pins are free. In <code>/boot/firmware/config.txt</code>, reboot, then <code>ls -l /dev/ttyAMA0</code>:
+        <div class="cmd"><pre>dtparam=uart0=on</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="o2"><div class="step-b"><label for="o2" class="step-t">Prove the wiring with one line</label>
+        <div class="step-d">If QGroundControl's HUD comes alive, UART, baud and route are right — before any software is configured.
+        <div class="cmd"><pre>socat /dev/ttyAMA0,b57600,raw UDP-DATAGRAM:&lt;laptop-ip&gt;:14550</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="o3"><div class="step-b"><label for="o3" class="step-t">mavlink-router for the real thing</label>
+        <div class="step-d">Routes to several endpoints and reconnects — needed once the Pi also sends obstacle data (Phase 4).
+        <div class="cmd"><pre>sudo apt install -y git meson ninja-build pkg-config gcc g++
+git clone https://github.com/mavlink-router/mavlink-router.git
+cd mavlink-router &amp;&amp; git submodule update --init --recursive
+meson setup build . &amp;&amp; ninja -C build &amp;&amp; sudo ninja -C build install</pre></div>
+        <code>/etc/mavlink-router/main.conf</code> — baud must match the FC's serial port setting:
+        <div class="cmd"><pre>[UartEndpoint fc]
+Device = /dev/ttyAMA0
+Baud = 57600
+
+[UdpEndpoint gcs]
+Mode = Normal
+Address = &lt;laptop-ip&gt;
+Port = 14550</pre></div></div></div></li>
+      <li class="step"><input type="checkbox" id="o4"><div class="step-b"><label for="o4" class="step-t">QGC video: Application Settings → Video → RTSP <code>rtsp://pi5drone.local:8554/cam</code></label></div></li>
+      <li class="step"><input type="checkbox" id="o5"><div class="step-b"><label for="o5" class="step-t">QGC telemetry: UDP 14550, usually connects on its own</label></div></li>
+    </ol>
+
+    <h3>D.8 What does the datalink carry? <span class="h3-tag">five-minute test</span></h3>
+    <p>Put the ground-side datalink's TX pad (TP2) on a USB-serial adapter and look at the first byte of each frame:</p>
+    <div class="cmd"><pre>cat /dev/ttyUSB0 | xxd | head -20</pre></div>
+    <div class="tw"><table><thead><tr><th>First byte</th><th>Protocol</th><th>Then</th></tr></thead><tbody>
+      <tr><td class="n">FD / FE</td><td class="n">MAVLink v2 / v1</td><td><span class="pill ok">Telemetry</span> QGC takes it from the datalink; the J11 link is only for Phase 4</td></tr>
+      <tr><td class="n">C8</td><td class="n">CRSF</td><td><span class="pill warn">RC only</span> telemetry goes FC → J11 → Pi → WiFi</td></tr>
+      <tr><td class="n">nothing</td><td>—</td><td>Wrong baud or not powered — try 57600, 115200, 420000</td></tr>
+    </tbody></table></div>
+    <p class="muted" style="font-size:13.5px">
+      OSD: start with QGroundControl's own instrument overlay — it costs nothing. Burn telemetry into a recording on
+      the <em>ground</em> (ffmpeg <code>drawtext</code>), never on the Pi, which has no CPU to spare. On Betaflight/INAV
+      the native route is MSP DisplayPort over J9.
+    </p>
+  </section>
+
+  <!-- ================= REFERENCE ================= -->
+  <section class="part">
+    <div class="part-head">
+      <span class="part-num">REF</span>
+      <h2>Reference</h2>
+    </div>
+
+    <h3>Files and addresses</h3>
+    <div class="tw"><table><tbody>
+      <tr><td><b>Laptop</b> <code>OneDrive\Gamuda intern\pi5-fpv-bringup\</code></td><td><code>PROGRESS.md</code> · <code>start-stream.sh</code> · <code>view-stream.ps1</code> · <code>latency-test.html</code> · <code>detect.ps1</code> + <code>detect.py</code> · <code>pi_detect.py</code> · <code>mediamtx-cam.yml</code> · <code>mediamtx.service</code> · <code>pi-detect.service</code></td></tr>
+      <tr><td><b>Laptop</b> <code>C:\Users\ivan\fpv-detect\</code></td><td>Python env for detection, ONNX models</td></tr>
+      <tr><td><b>Pi</b> <code>~/mediamtx/</code> · <code>~/detect/</code> · <code>~/start-stream.sh</code></td><td>Web page server · on-Pi detection · direct UDP stream</td></tr>
+      <tr><td><b>Ports</b></td><td>8889 web pages (WebRTC) · 8554 RTSP · 5600 UDP direct stream · 14550 MAVLink</td></tr>
+    </tbody></table></div>
+
+    <h3>Glossary</h3>
+    <div class="tw"><table><tbody>
+      <tr><td class="n"><b>RC link</b></td><td>Pilot's transmitter → drone: stick positions and switches. Tiny data, <strong>safety-critical</strong>. Arrives at J7.</td></tr>
+      <tr><td class="n"><b>Failsafe</b></td><td>What the FC does when RC drops — hold, return home, or land.</td></tr>
+      <tr><td class="n"><b>CRSF / ELRS</b></td><td>How an RC receiver talks to the FC; ExpressLRS is the common 2.4 GHz system.</td></tr>
+      <tr><td class="n"><b>Telemetry · MAVLink</b></td><td>Data back from the drone (battery, GPS, attitude), usually as MAVLink — what QGroundControl speaks.</td></tr>
+      <tr><td class="n"><b>FC · ESC · BEC</b></td><td>Flight controller · motor speed controller (J6) · 5 V converter off the flight battery.</td></tr>
+      <tr><td class="n"><b>VTX · OSD · FPV</b></td><td>Analogue video transmitter (J8) · flight data drawn over the video · flying by the camera.</td></tr>
+      <tr><td class="n"><b>Jello</b></td><td>Rolling-shutter wobble under vibration. Global shutter does not have it.</td></tr>
+      <tr><td class="n"><b>MediaMTX · WebRTC · RTSP</b></td><td>The Pi's stream server · browser video with low delay · the stream format VLC and QGC read.</td></tr>
+    </tbody></table></div>
+    <div class="tw"><table><thead><tr><th>Link</th><th>Direction</th><th>Data rate</th><th>Carried by</th></tr></thead><tbody>
+      <tr><td><b>RC control</b></td><td class="n">ground → drone</td><td class="n">~kbit/s · <span class="pill crit">must not drop</span></td><td>RC receiver into J7</td></tr>
+      <tr><td><b>Telemetry</b></td><td class="n">drone → ground</td><td class="n">~kbit/s</td><td>SX1281 datalink, or the RC back-channel</td></tr>
+      <tr><td><b>Video</b></td><td class="n">drone → ground</td><td class="n"><b>~3 Mbit/s</b></td><td>WiFi, from the Pi</td></tr>
+    </tbody></table></div>
+
+    <h3>Troubleshooting, in order</h3>
+    <div class="tw"><table><thead><tr><th>Symptom</th><th>Look here</th></tr></thead><tbody>
+      <tr><td>Pi reboots by itself</td><td>Power supply: <code>EXT5V_V</code> under ~5.0 V (0.4)</td></tr>
+      <tr><td>Stutter, fine when idle</td><td><code>vcgencmd get_throttled</code> and temperature before blaming the link — no fan, or BEC sag</td></tr>
+      <tr><td>Camera busy</td><td>MediaMTX, <code>pi-detect</code> or <code>rpicam-vid</code> already has it — one at a time</td></tr>
+      <tr><td>Page laggy, Pi unreachable or dropping out</td><td>Power first: <code>vcgencmd pmic_read_adc EXT5V_V</code> ≥ 5.05 V and <code>usb_max_current_enable=1</code>. A weak supply did this twice on this build.</td></tr>
+      <tr><td>No distances; <code>VL53L5CX not detected on 0x29</code>; <code>i2c ... controller timed out</code></td><td><code>pinctrl get 2,3</code>: SDA or SCL <code>lo</code> = line stuck. Unplug the sensor's SDA wire: if pin 3 goes <code>hi</code>, the wire / sensor held it — reseat and it clears. Restart detection.</td></tr>
+      <tr><td>Hailo: <code>Device disconnected while opening device</code></td><td>The detector was stopped without closing the Hailo (dmesg <code>hailo_nnc_driver_down ... timeout</code>). Reboot. Restart detection only with <code>sudo systemctl restart pi-detect</code> — the script now exits cleanly on it.</td></tr>
+      <tr><td>Latency grows and never recovers</td><td>Viewer reading slower than 30 fps (<code>-framerate 60 -sync ext</code>), or you are on TCP</td></tr>
+      <tr><td>Breaks up and stays broken ~1 s</td><td>Keyframe interval — lower <code>--intra</code></td></tr>
+      <tr><td>SSH refused for ~10 min</td><td>Too many hung or aborted sessions (OpenSSH <code>PerSourcePenalties</code>). Wait; a reboot clears it</td></tr>
+      <tr><td><code>pkill -f name</code> drops your SSH session</td><td>It matched its own command line. Use <code>systemctl stop</code>, or a pattern like <code>"[.]venv/bin/python pi_detect"</code></td></tr>
+      <tr><td>Camera detected, but <code>Failed to write reg 0x0100 … error = -5</code> / <code>Failed to start streaming: Input/output error</code></td><td>Contact fault on the ribbon or connector. Power off, reseat; try the other CAM/DISP connector (CAM1 on this Pi is faulty); then a spare cable</td></tr>
+      <tr><td>AR0234: <code>failed to read chip id</code>, intermittent</td><td>Power overlay did not land — re-run the <code>dtmerge</code> check</td></tr>
+      <tr><td>AR0234: detected, then frame-start timeout</td><td>Lane count, or DATA/CLK P and N swapped in the cable</td></tr>
+      <tr><td>AR0234: CRC/ECC errors</td><td>Shorter cable, reseat, route away from motors, then <code>link-frequency=360000000</code></td></tr>
+      <tr><td>AR0234: fine at 30 fps, fails near 60</td><td>Rail ripple or marginal link — scope 2.8 / 1.8 / 1.2 V</td></tr>
+      <tr><td>Board hot, or Pi resets with the camera fitted</td><td><span class="pill crit">Power off now</span> Shorts, orientation, regulator outputs</td></tr>
+    </tbody></table></div>
+
+    <h3>Frozen by this fabrication run</h3>
+    <div class="note crit">
+      <span class="note-h">TRIGGER has no pull-down on these boards</span>
+      Ball D5 (→ J2 pin 2) floats on every board in this batch. Master mode, the default, ignores it.
+      <strong><code>external-trigger</code> and <code>sync-sink</code> are off-limits</strong>: a floating input gives
+      random exposures that look like a software bug. Fix if needed: a 0402 10 kΩ from J2 pin 2 to J2 pin 3 (GND).
+    </div>
+    <div class="note warn">
+      <span class="note-h">Also committed</span>
+      <strong>0.20 mm drills ×134</strong> — JLCPCB's 4-layer minimum.<br>
+      <strong>MIPI traces 0.120 mm</strong> where 100 Ω wants 0.127 mm; pairs matched under 0.10 mm, so impedance is the
+      one open variable if the link fails only at high rate.<br>
+      <strong>R7/R8 fitted</strong> — 2.7 kΩ I²C pull-ups in parallel with the Pi's (~1.2 kΩ combined). Legal at 400 kHz; suspect them if the bus misbehaves.
+    </div>
+
+    <h3>AR0234 board facts</h3>
+    <div class="tw"><table><tbody>
+      <tr><td>Sensor</td><td class="n">AR0234CSSM00SUKA0-CP · 1920×1200 mono global shutter · ODCSP83</td></tr>
+      <tr><td>I²C</td><td class="n">0x10 (SADDR → GND) · 1.8 V side via U5 TCA39306</td></tr>
+      <tr><td>Clock</td><td class="n">Y1 24.000 MHz → EXTCLK via R17 33 Ω</td></tr>
+      <tr><td>Rails</td><td class="n">+3V3 in → +2V8 115 mA · +1V8 13 mA · +1V2 250 mA</td></tr>
+      <tr><td>Regulators</td><td class="n">U2, U3 LD39050PUR linear · U4 TLV62568 buck + L1 2.2 µH</td></tr>
+      <tr><td>Board</td><td class="n">35 × 35 mm · holes 20 mm apart · 4 layer · 1.585 mm · 57 components</td></tr>
+      <tr><td>Connectors</td><td class="n">J1 22-way 0.5 mm FFC · J2 3-pin flash / trigger</td></tr>
+    </tbody></table></div>
+  </section>
+
+  <footer>
+    <div class="tools">
+      <button type="button" id="copyrec">Copy build record</button>
+      <button type="button" id="print">Print / save PDF</button>
+      <button type="button" id="reset">Reset checklist</button>
+    </div>
+    <p style="max-width:68ch">
+      Progress and recorded measurements are kept in this browser only — they are not shared
+      between devices and will not survive clearing site data. Copy the record out when you
+      finish a session.
+    </p>
+    <p class="muted" style="font-size:12.5px">
+      Board revision 2026-09-13 · driver from Kurokesu/ar0234-rpi-driver · power-timing overlay
+      <code>ar0234-gamuda-power-overlay.dts</code>. Hardware remains unproven until continuity,
+      voltage, clock, detection and a sustained stream have all passed.
+    </p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var KEY = 'ar0234-fpv-build-v1';
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.step input[type=checkbox]'));
+  var recs  = Array.prototype.slice.call(document.querySelectorAll('[data-rec]'));
+  var fill = document.getElementById('fill');
+  var count = document.getElementById('count');
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+  }
+  function save(state) {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode */ }
+  }
+
+  var state = load();
+
+  boxes.forEach(function (b) {
+    if (state[b.id]) b.checked = true;
+    b.addEventListener('change', function () {
+      state[b.id] = b.checked;
+      save(state);
+      paint();
+    });
+  });
+
+  recs.forEach(function (i) {
+    var k = 'rec:' + i.dataset.rec;
+    if (state[k]) i.value = state[k];
+    i.addEventListener('input', function () {
+      state[k] = i.value;
+      save(state);
+    });
+  });
+
+  function paint() {
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    count.textContent = done + ' / ' + boxes.length;
+    fill.style.width = boxes.length ? (done / boxes.length * 100) + '%' : '0%';
+  }
+  paint();
+
+  // copy buttons on every command block
+  document.querySelectorAll('.cmd').forEach(function (wrap) {
+    var pre = wrap.querySelector('pre');
+    if (!pre) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', function () {
+      var text = pre.textContent;
+      var done = function () {
+        btn.textContent = 'Copied';
+        btn.classList.add('done');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1400);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } else { fallback(); }
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = 'Select manually'; }
+        document.body.removeChild(ta);
+      }
+    });
+    wrap.appendChild(btn);
+  });
+
+  document.getElementById('print').addEventListener('click', function () { window.print(); });
+
+  document.getElementById('reset').addEventListener('click', function () {
+    if (!window.confirm('Clear every tick and every recorded measurement?')) return;
+    state = {};
+    save(state);
+    boxes.forEach(function (b) { b.checked = false; });
+    recs.forEach(function (i) { i.value = ''; });
+    paint();
+  });
+
+  document.getElementById('copyrec').addEventListener('click', function () {
+    var lines = ['# AR0234 FPV build record', '', 'Date: ' + new Date().toISOString().slice(0, 10), ''];
+    recs.forEach(function (i) {
+      lines.push('- ' + i.closest('label').firstChild.textContent.trim() + ': ' + (i.value || '—'));
+    });
+    var done = boxes.filter(function (b) { return b.checked; }).length;
+    lines.push('', 'Steps complete: ' + done + ' / ' + boxes.length);
+    var text = lines.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    var btn = document.getElementById('copyrec');
+    btn.textContent = 'Copied';
+    setTimeout(function () { btn.textContent = 'Copy build record'; }, 1400);
+  });
+})();
+</script>
+
+</body></html>

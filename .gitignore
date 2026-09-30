@@ -1,0 +1,16 @@
+# models: downloaded or compiled, too big for git
+*.pt
+*.onnx
+*.hef
+# data and outputs
+logs/
+datasets/
+runs/
+*.csv
+# secrets: never commit the viewer password
+.fpv-viewer-pass
+*.pass
+# python
+__pycache__/
+*.pyc
+.venv/

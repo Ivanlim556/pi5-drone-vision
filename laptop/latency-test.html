@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Latency test</title>
+<style>
+  body { margin:0; background:#000; color:#fff; font-family:Consolas, monospace; display:flex; height:100vh; }
+  #clock { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+  #t { font-size:9vw; font-weight:bold; letter-spacing:.02em; }
+  p { color:#aaa; font-size:14px; max-width:36ch; text-align:center; }
+  iframe { flex:1; border:0; border-left:2px solid #333; }
+</style></head>
+<body>
+  <div id="clock"><div id="t">0.000</div>
+    <p>Point the Pi camera at this stopwatch. Live stream on the right. Latency = this number minus the one in the video.</p></div>
+  <iframe src="http://pi5drone.local:8889/cam/" allow="autoplay"></iframe>
+<script>
+  const t0 = performance.now(), el = document.getElementById('t');
+  (function tick() { el.textContent = ((performance.now() - t0) / 1000).toFixed(3); requestAnimationFrame(tick); })();
+</script>
+</body></html>

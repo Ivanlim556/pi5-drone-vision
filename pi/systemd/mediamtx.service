@@ -1,0 +1,14 @@
+[Unit]
+Description=MediaMTX live camera page (http://pi5drone.local:8889/cam)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/mediamtx
+ExecStart=/home/pi/mediamtx/mediamtx /home/pi/mediamtx/cam.yml
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+# Indoor Objects v4 (Roboflow Universe, project-tgiyj/indoor-objects-4uctj, CC BY 4.0), files renamed short.
+path: C:/Users/ivan/fpv-detect/datasets/indoor-objects
+train: train/images
+val: valid/images
+test: test/images
+names: ['cabinet', 'cabinetDoor', 'chair', 'couch', 'door', 'openedDoor', 'pole', 'refrigeratorDoor', 'table', 'window']
