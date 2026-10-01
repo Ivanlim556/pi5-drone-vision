@@ -127,6 +127,18 @@ Boxed video on a web page: **http://pi5drone.local:8889/detect** (plain feed sta
 - **Phase 1 gate passed 2026-09-28 (15:38–15:48):** 60/60 readings running, 0 restarts, `throttled=0x0`, 54.9–59.8 °C, fan 2,350–4,375 rpm, 5.05–5.16 V, `/detect` ~28 fps at the end.
 - GPIO: the AI HAT+ passes the 40 pins through (socket strip J1 on top) → the VL53L5CX wires to the top of the HAT, pins 1/3/5/6 (+7 for INT). Pin 1 only — never 2/4 (5 V). Before fitting: 69 pending updates to install (`sudo apt full-upgrade`); bootloader already current (2026-05-26). Check the fan still clears the HAT.
 
+## AR0234 pre-setup on card A — DONE 2026-10-01 (board not yet arrived)
+
+Decided: same card A (not card B). Backup first: files → `C:\Users\ivan\pi5-backups\cardA-20260930-1413\` (config, services, code, ONNX models, package lists, logs) + GitHub v1.0-cm3. Full-card clone abandoned: the USB card reader dropped out mid-copy twice (`USB disconnect`, Pi power/temps fine — reader suspect).
+- **Kurokesu repo added** (`/etc/apt/sources.list.d/kurokesu.sources`; script read before running: key + source only, fingerprint-checked; undo `sudo sh setup.sh --remove`).
+- **Dry run finding:** Kurokesu packages carry a `1:` epoch → a plain `apt upgrade` would have replaced 11 standard camera packages (libcamera*, rpicam-apps*). **apt lock** `/etc/apt/preferences.d/kurokesu.pref`: `Pin: release o=Kurokesu` priority 90, `ar0234-rpi-dkms` 500 → 0 Kurokesu packages in the upgrade list, standard camera stack kept. (First attempt failed: a long multi-line paste got truncated in SSH — use the one-line `printf` version.)
+- **Driver:** `ar0234-rpi-dkms 0.1.2` only (replaces nothing), DKMS-built for 6.18.50 rpi-2712 + v8; overlay `/boot/firmware/overlays/ar0234.dtbo` (supports `4lane`, `cam0`).
+- **Power overlay** (Pi 5 version) compiled → `/boot/firmware/overlays/ar0234-gamuda-power.dtbo`; merge test with `ar0234,4lane,cam0`: OK, cam0_reg + cam1_reg = 35000 µs, ar0234@10, 4 data lanes.
+- **`camera` switch** (`/usr/local/bin/camera`, source in this folder): `sudo camera cm3|ar0234` + reboot rewrites one marked block in `config.txt` (backup each time); `camera` shows the mode. Tested on a copy: 5 switches → one block, other lines untouched.
+- **Pre-test (ar0234 mode, no board):** device `10-0010` (`ar0234cs`) on CAM0's I²C bus (`i2c-10` = `i2c@88000`), regulators live at 35000 µs. Driver did **not** probe by itself at boot; manual `echo 10-0010 | sudo tee /sys/bus/i2c/drivers/ar0234/bind` → `extclk 24000000Hz, link 450000000Hz, lanes 4` → `Error reading reg 0x3000: -121` → `failed to read chip id` = **PASS** (only the board missing). Power-on → first I²C read took **47 ms** = 35 ms ramp + 6.2 ms driver wait, as designed.
+- **Arrival-day watch item:** if the driver again doesn't bind by itself at boot with the board connected → manual bind works; make it permanent with a small boot rule.
+- Back to `camera cm3`: all normal (34 fps `/detect`).
+
 ## AR0234 — board ~1 week away (from 2026-09-28)
 
 **Card B candidate (2026-09-29):** 128 GB microSD (shows as "Mass Storage Device", 119 GB). Held an old Pi OS (Apr 2026, WiFi "HONOR X9a 5G"), free to erase; one file was **corrupt** (`user-data`) → unsafe unplug or a failing card. Erased with Imager (now empty FAT32, drive D:). **Tested 2026-09-29: PASS** — 16 GiB of seeded random data written and read back byte-for-byte with unbuffered I/O (H2testw-style script, `cardtest.py`): **0 bad bytes**, write 16.8 MB/s, read 18.0 MB/s (likely limited by the USB card reader). The earlier corrupt file was an unsafe unplug. → **Usable as card B** for bench work; the card that flies should still be a new A2/U3 card.
@@ -155,6 +167,10 @@ Target: **indoor** flight. Principle: avoidance is driven by the distance sensor
   - Webcam (my room): COCO → person 0.84, bottle, chair; v1 → only a wrong "cabinetDoor" — missed the door, knows no people.
   - **Verdict: not deployed.** Causes: dataset is largely furniture/catalogue photos (domain gap vs a low, dim drone view); too many near-identical classes; no person class.
   - **Next:** own photos from the drone camera (capture script when the Pi is back; label ~200–300 in Roboflow), fewer obstacle classes (door incl. open, window, pole/pillar, furniture, person, maybe stairs/wall), keep person (mix COCO persons or start from the COCO model), then retrain. The Pi keeps the COCO model meanwhile.
+
+## GitHub — v1.0 CM3 milestone (2026-09-30)
+
+**Private** repo https://github.com/Ivanlim556/pi5-drone-vision · release **v1.0-cm3**. Local clone `C:\Users\ivan\pi5-drone-vision` (outside OneDrive). Layout `pi/`, `laptop/`, `training/`, `docs/` (guide + this log). Kept out: the viewer password hash (placeholder in `pi/mediamtx/cam.yml`), `.fpv-viewer-pass`, model weights, datasets, runs, logs (`.gitignore`). `.gitattributes` keeps Pi files LF. Git identity set for this repo only. v2.0 = AR0234, same repo.
 
 ## Robustness fixes 2026-09-30 (all tested on the Pi)
 

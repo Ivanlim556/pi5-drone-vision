@@ -1,0 +1,44 @@
+#!/bin/sh
+# Switch the Pi between the two cameras by rewriting a marked block in /boot/firmware/config.txt.
+#   sudo camera cm3      Raspberry Pi Camera Module 3 (auto-detect)
+#   sudo camera ar0234   GAmuda AR0234 board on CAM0: driver overlay (4 lanes) + power-timing overlay
+#   camera               show the current setting
+# A reboot is needed afterwards. Each switch keeps a dated backup of config.txt next to it.
+# Both cameras must be on CAM/DISP 0 -- this Pi's CAM1 connector is faulty.
+set -eu
+CFG=${CAMERA_CFG:-/boot/firmware/config.txt}   # override only for testing
+OVL=${CAMERA_OVL:-/boot/firmware/overlays}
+BEGIN="# >>> camera-select (managed by 'camera' -- edit with it, not by hand)"
+END="# <<< camera-select"
+
+current() {
+  if grep -q "^dtoverlay=ar0234" "$CFG"; then echo ar0234; else echo cm3; fi
+}
+
+[ $# -eq 0 ] && { echo "camera: $(current)  (change with: sudo camera cm3|ar0234, then reboot)"; exit 0; }
+[ "$(id -u)" -eq 0 ] || [ -n "${CAMERA_CFG:-}" ] || { echo "run with sudo" >&2; exit 1; }
+
+case "$1" in
+  cm3)    block="camera_auto_detect=1" ;;
+  ar0234) [ -f "$OVL/ar0234.dtbo" ] || { echo "ar0234.dtbo missing: install ar0234-rpi-dkms" >&2; exit 1; }
+          [ -f "$OVL/ar0234-gamuda-power.dtbo" ] || { echo "ar0234-gamuda-power.dtbo missing in overlays/" >&2; exit 1; }
+          block="camera_auto_detect=0
+dtoverlay=ar0234,4lane,cam0
+dtoverlay=ar0234-gamuda-power" ;;
+  *)      echo "usage: sudo camera cm3|ar0234" >&2; exit 1 ;;
+esac
+
+cp "$CFG" "$CFG.bak-$(date +%Y%m%d-%H%M%S)"
+tmp=$(mktemp)
+# drop any earlier managed block and any stray camera lines, then append the new block;
+# its own [all] sits inside the markers, so repeated switches never pile up extra [all] lines
+awk -v b="$BEGIN" -v e="$END" '
+  $0 == b { skip = 1; next }
+  $0 == e { skip = 0; next }
+  skip { next }
+  /^camera_auto_detect=/ || /^dtoverlay=ar0234/ { next }
+  { print }' "$CFG" > "$tmp"
+printf '%s\n[all]\n%s\n%s\n' "$BEGIN" "$block" "$END" >> "$tmp"
+cat "$tmp" > "$CFG"
+rm -f "$tmp"
+echo "camera set to $1 -- reboot to apply (sudo reboot)"

@@ -235,7 +235,7 @@
     <div class="tw"><table><thead><tr><th>Phase</th><th>What it adds</th><th>Gate</th><th>Status</th></tr></thead><tbody>
       <tr><td class="n">0</td><td><b>Pi 5 + Camera Module 3</b> — stream, web pages, detection on the CPU</td><td>148 ms · 10-min soak · 15 fps detection at 66–69 °C</td><td><span class="pill ok">Done</span> 2026-09-26</td></tr>
       <tr><td class="n">1</td><td><b>Hailo</b> — detection off the CPU</td><td>30 fps boxes · <code>throttled=0x0</code></td><td><span class="pill ok">Done</span> 2026-09-28</td></tr>
-      <tr><td class="n">2</td><td><b>AR0234</b> — replaces the CM3</td><td>Phase 0 gates again · greyscale benchmark</td><td><span class="pill warn">Waiting</span> board</td></tr>
+      <tr><td class="n">2</td><td><b>AR0234</b> — replaces the CM3</td><td>Phase 0 gates again · greyscale benchmark</td><td><span class="pill warn">Waiting</span> board · software ready</td></tr>
       <tr><td class="n">3</td><td><b>Distance sensor</b> (VL53L5CX)</td><td>Matches a tape measure</td><td>Next</td></tr>
       <tr><td class="n">4</td><td><b>Obstacle avoidance</b> — the FC avoids what the Pi reports</td><td>Simulator → props off → tethered → flight</td><td>After 1–3</td></tr>
       <tr><td class="n">—</td><td><b>On the drone</b> — power, mounting, radios, FC link</td><td>Bench with motors, props off</td><td>Any time after 1</td></tr>
@@ -548,7 +548,67 @@ cd ~/detect &amp;&amp; .venv/bin/python pi_detect.py --test 150        # live fe
     </tbody></table></div>
     <p class="muted" style="font-size:13.5px">For plain detection the two trade; global shutter becomes necessary once anything measures from the frames — distance, tracking, avoidance.</p>
 
-    <h3>2.1 Software, before the board arrives <span class="h3-tag">card B</span></h3>
+
+    <h3>2.0 Arrival-day test <span class="h3-tag">printable checklist</span></h3>
+    <div class="note ok"><span class="note-h">Software pre-setup done 2026-10-01 — on card A</span>
+      Driver <code>ar0234-rpi-dkms 0.1.2</code> built, Pi 5 power overlay installed, apt locked so Kurokesu never replaces the
+      standard camera stack, and <code>sudo camera ar0234|cm3</code> switches modes. Pre-test with no board:
+      <code>extclk 24000000Hz, link 450000000Hz, lanes 4</code> → <code>failed to read chip id</code> = pass; power-on to
+      first I²C read 47 ms (35 ms ramp + 6.2 ms), as designed. So 2.1 is done; arrival day starts here.
+      Stop at the first failure. Back to the CM3 at any time: <code>sudo camera cm3 &amp;&amp; sudo reboot</code>.</div>
+    <p class="muted" style="font-size:13.5px">Have ready: multimeter, Kapton tape, the 22-to-22 cables, a magnifier, ideally a scope (ad8).</p>
+    <p style="margin:18px 0 8px"><b>A — Before any power — bench, Pi switched off</b></p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="ad1"><div class="step-b"><label for="ad1" class="step-t">Look at the board (good light / magnifier)</label>
+        <div class="step-d"><span class="pill ok">Pass</span> No solder bridges, parts the right way round, nothing lifted or missing &nbsp; <span class="pill warn">Else</span> Don't power it — photograph it and investigate</div></div></li>
+      <li class="step"><input type="checkbox" id="ad2"><div class="step-b"><label for="ad2" class="step-t">Resistance +3V3 → GND on the board (J1 pin 22 to a GND pin)</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Not near 0 Ω &nbsp; <span class="pill warn">Else</span> A short — don't power it; find the bridge</div></div></li>
+      <li class="step"><input type="checkbox" id="ad3"><div class="step-b"><label for="ad3" class="step-t">Pick the 22-to-22 cable whose contacts face the pads at both ends</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Fits naturally, both latches close &nbsp; <span class="pill warn">Else</span> Try the other contact type</div></div></li>
+      <li class="step"><input type="checkbox" id="ad4"><div class="step-b"><label for="ad4" class="step-t">Continuity 1→1 … 22→22 through the cable, no pin touching its neighbour</label>
+        <div class="step-d"><span class="pill ok">Pass</span> All 22 straight through &nbsp; <span class="pill warn">Else</span> Wrong cable type or a faulty cable</div></div></li>
+      <li class="step"><input type="checkbox" id="ad5"><div class="step-b"><label for="ad5" class="step-t">Kapton over contact 18 at the camera end</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Contact 18 reads open &nbsp; <span class="pill warn">Else</span> —</div></div></li>
+    </ol>
+    <p style="margin:18px 0 8px"><b>B — First power-on — Pi off, AR0234 into CAM0, power on</b></p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="ad6"><div class="step-b"><label for="ad6" class="step-t">Touch test for the first 30 s</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Nothing hot &nbsp; <span class="pill warn">Else</span> <b>Power off immediately</b></div></div></li>
+      <li class="step"><input type="checkbox" id="ad7"><div class="step-b"><label for="ad7" class="step-t"><code>sudo camera ar0234 &amp;&amp; sudo reboot</code>, then <code>dmesg | grep -i ar0234</code></label>
+        <div class="step-d"><span class="pill ok">Pass</span> <code>Success reading chip id: 0x1a56</code> (the 1 = mono) &nbsp; <span class="pill warn">Else</span> <code>failed to read chip id</code> → ad8 · <code>0x0a56</code> = a colour part was fitted · nothing at all → manual bind: <code>echo 10-0010 | sudo tee /sys/bus/i2c/drivers/ar0234/bind</code> (the pre-test needed this)</div></div></li>
+      <li class="step"><input type="checkbox" id="ad8"><div class="step-b"><label for="ad8" class="step-t">Only if ad7 failed: keep the sensor powered (<code>echo on | sudo tee /sys/bus/i2c/devices/10-0010/power/control</code>), then measure</label>
+        <div class="step-d"><span class="pill ok">Pass</span> J1.22 = 3.3 V · rails 2.8 / 1.8 / 1.2 V present, in that order on a scope · 24 MHz on EXTCLK &nbsp; <span class="pill warn">Else</span> A missing rail or clock points at that regulator or Y1</div></div></li>
+    </ol>
+    <p style="margin:18px 0 8px"><b>C — Software</b></p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="ad9"><div class="step-b"><label for="ad9" class="step-t"><code>v4l2-ctl --list-devices</code> · <code>v4l2-ctl -d /dev/v4l-subdev0 --list-subdev-mbus-codes 0</code></label>
+        <div class="step-d"><span class="pill ok">Pass</span> ar0234 listed, bus format <b>Y10</b> &nbsp; <span class="pill warn">Else</span> A Bayer code = wrong sensor variant</div></div></li>
+      <li class="step"><input type="checkbox" id="ad10"><div class="step-b"><label for="ad10" class="step-t"><code>rpicam-hello --list-cameras</code> — does the standard camera stack see it?</label>
+        <div class="step-d"><span class="pill ok">Pass</span> ar0234 listed &nbsp; <span class="pill warn">Else</span> Install Kurokesu's libcamera <em>by name</em> (the apt lock allows only that), retest</div></div></li>
+      <li class="step"><input type="checkbox" id="ad11"><div class="step-b"><label for="ad11" class="step-t">First photo: <code>rpicam-still -n -o ar0234.jpg</code></label>
+        <div class="step-d"><span class="pill ok">Pass</span> A real greyscale picture &nbsp; <span class="pill warn">Else</span> Garbled = cable/connector · black = exposure · timeout = data lanes</div></div></li>
+      <li class="step"><input type="checkbox" id="ad12"><div class="step-b"><label for="ad12" class="step-t">Focus the M12 lens on something 3–5 m away, then lock it (nut or a dab of glue)</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Sharp at distance &nbsp; <span class="pill warn">Else</span> —</div></div></li>
+      <li class="step"><input type="checkbox" id="ad13"><div class="step-b"><label for="ad13" class="step-t">Orientation: read some text in the picture</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Right way up, not mirrored &nbsp; <span class="pill warn">Else</span> <code>rotation=</code> / <code>orientation=</code> on the ar0234 overlay line</div></div></li>
+      <li class="step"><input type="checkbox" id="ad14"><div class="step-b"><label for="ad14" class="step-t">Into the pages: <code>/cam</code> and <code>/detect</code></label>
+        <div class="step-d"><span class="pill ok">Pass</span> Both work with the AR0234 &nbsp; <span class="pill warn">Else</span> MediaMTX can't use it → the <code>rpicam-vid</code> publisher fallback (2.5)</div></div></li>
+    </ol>
+    <p style="margin:18px 0 8px"><b>D — Performance — the gate (same tests the CM3 passed)</b></p>
+    <ol class="steps">
+      <li class="step"><input type="checkbox" id="ad15"><div class="step-b"><label for="ad15" class="step-t">Latency with <code>latency-test.html</code></label>
+        <div class="step-d"><span class="pill ok">Pass</span> About the CM3's 148 ms or better &nbsp; <span class="pill warn">Else</span> —</div></div></li>
+      <li class="step"><input type="checkbox" id="ad16"><div class="step-b"><label for="ad16" class="step-t">10-minute run</label>
+        <div class="step-d"><span class="pill ok">Pass</span> No restarts, <code>throttled=0x0</code>, no CSI/CRC errors in <code>dmesg</code> &nbsp; <span class="pill warn">Else</span> Errors that come and go = cable/connector or link speed (<code>link-frequency=</code>)</div></div></li>
+      <li class="step"><input type="checkbox" id="ad17"><div class="step-b"><label for="ad17" class="step-t">10 cold boots (power off/on)</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Chip ID read 10 of 10 (<code>dmesg | grep -c 'Success reading chip id'</code> each time) &nbsp; <span class="pill warn">Else</span> 9/10 is a fail — power timing: try <code>dtoverlay=ar0234-gamuda-power,delay-us=…</code></div></div></li>
+      <li class="step"><input type="checkbox" id="ad18"><div class="step-b"><label for="ad18" class="step-t">Detection on greyscale: same scene, CM3 vs AR0234</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Note how much accuracy drops &nbsp; <span class="pill warn">Else</span> Feeds the round-2 training (greyscale)</div></div></li>
+      <li class="step"><input type="checkbox" id="ad19"><div class="step-b"><label for="ad19" class="step-t">Global-shutter demo: a spinning fan or a fast pan across a door frame</label>
+        <div class="step-d"><span class="pill ok">Pass</span> Straight lines on the AR0234, bent "jello" on the CM3 &nbsp; <span class="pill warn">Else</span> — a good slide for the presentation</div></div></li>
+    </ol>
+
+    <h3>2.1 Software, before the board arrives <span class="h3-tag">done on card A</span></h3>
     <ol class="steps">
       <li class="step"><input type="checkbox" id="s1"><div class="step-b"><label for="s1" class="step-t">A second SD card, fresh 64-bit OS</label>
         <div class="step-d">The Kurokesu repository replaces stock <code>rpicam-apps</code> and <code>libcamera</code> with its own forks. Keep it off card A, which runs everything in Phase 0.</div></div></li>
