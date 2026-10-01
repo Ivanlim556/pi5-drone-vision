@@ -258,3 +258,11 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - [x] Fan fitted — 66–69 °C at 15 fps, no throttling
 - [ ] On-Pi detection at boot — **paused on purpose**; re-enable when object detection work resumes (`sudo systemctl enable --now pi-detect`)
 - [ ] Stage 4 when the Hailo arrives (detection on the Pi itself)
+
+## 2026-10-01: sensor freeze test (100 kHz) + handover page
+- Baseline at 400 kHz: 0 sensor restarts in 4 h 10 min of this boot; log `0087_*` shows ~9 distance updates/s, no stale rows.
+- Trying `dtparam=i2c_arm_baudrate=100000`. Cost: the firmware upload takes ~9 s instead of ~2 s, and the grid rate may drop below 15 Hz. The watchdog's startup allowance was raised from 8 to 20 s so the slower upload can't trigger a restart loop.
+- `mavlink_out.py` now accepts `device,baud` (e.g. `/dev/ttyAMA0,921600`) for the J11 UART.
+- `HANDOVER.html` written for teammates (system overview, SSH login, commands, FC bench test, wiring, troubleshooting).
+- After reboot at 100 kHz (15:45): sensor started fine, 0 restarts, 0 I2C errors. Update rate ≈ 6–7/s (63 distance changes in 10 s on a cup at 0.55 m), down from 15 Hz — the ~1.4 KB grid read is bus-limited. Nearest stays 0.10 m even facing a wall: something sits right in front of one edge zone (wire/box edge?) — check.
+- Next: soak 1–2 days. Freezes still → speed isn't the cause, back to 400 kHz + solder wires. No freezes → try 200 kHz (~12/s).

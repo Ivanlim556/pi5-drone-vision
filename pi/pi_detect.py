@@ -186,7 +186,7 @@ def _tof_worker(buf, stamp, frames, errors, flip, min_m):
     for pin in (17, 27):
         subprocess.run(["pinctrl", "set", str(pin), "op", "dh"], check=True)
     time.sleep(0.1)
-    s = vl53l5cx.VL53L5CX()  # ~2 s at 400 kHz: uploads the sensor's firmware
+    s = vl53l5cx.VL53L5CX()  # uploads the sensor's firmware (~84 KB): ~2 s at 400 kHz, ~9 s at 100 kHz
     s.set_resolution(8 * 8)
     s.set_ranging_frequency_hz(15)
     s.start_ranging()
@@ -246,7 +246,7 @@ class ToF:
         while True:
             time.sleep(0.5)
             now = time.monotonic()
-            fresh_ref = max(self.stamp.value, self.t_spawn + 8)  # allow ~8 s for power-up + firmware upload
+            fresh_ref = max(self.stamp.value, self.t_spawn + 20)  # power-up + firmware upload: ~2 s at 400 kHz, ~9 s at 100 kHz
             if now - fresh_ref > self.STALE_RESTART_S or not self.proc.is_alive():
                 self._spawn()
 

@@ -40,7 +40,9 @@ class MavlinkOut:
     FOV_DEG, ZONES, MIN_CM, MAX_CM = 45.0, 8, 10, 400
 
     def __init__(self, target, alert_m=1.5):
-        self.m = mavutil.mavlink_connection(target, source_system=1,
+        # serial ports as "/dev/ttyAMA0,921600"; network targets ("udpin:0.0.0.0:14550") have no comma
+        dev, _, baud = target.partition(",")
+        self.m = mavutil.mavlink_connection(dev, baud=int(baud or 115200), source_system=1,
                                             source_component=mavutil.mavlink.MAV_COMP_ID_OBSTACLE_AVOIDANCE)
         self.alert_m = alert_m
         self.t0, self.t_hb, self.t_obs, self.t_alert, self.last_alert = time.time(), 0.0, 0.0, 0.0, None
