@@ -89,6 +89,11 @@ python3 -c "import hashlib,base64,getpass; print('sha256:'+base64.b64encode(hash
 Then open `http://<pi>:8889/detect` (user `viewer`). Laptop radar: `laptop\fc_view.ps1`. Full details and every
 fix: `docs/guide.html` and `docs/PROGRESS.md`.
 
+## AR0234 camera board
+
+The in-house board itself — schematic, Gerbers, BOM, pick-and-place, photos, how it was made (EasyEDA Pro, JLCPCB)
+and its known limits: [`hardware/ar0234-board/`](hardware/ar0234-board/README.md).
+
 ## AR0234 setup (v2.0)
 
 The board goes on **CAM0** with a 22-to-22 cable whose contacts face the pads at **both** ends (blue stiffener away
