@@ -224,7 +224,7 @@
       </div>
       <div class="fact">
         <dt>Distance + FC link</dt>
-        <dd><b>VL53L5CX 8×8 · MAVLink 10 Hz</b><br><span class="muted">±5 cm to 1 m · obstacle reports live, real FC next.</span></dd>
+        <dd><b>VL53L5CX 8×8 · MAVLink 10 Hz</b><br><span class="muted">max error 6 cm to 1 m · obstacle reports live, real FC next.</span></dd>
       </div>
     </dl>
   </header>
@@ -861,7 +861,7 @@ media-ctl -p</pre></div></div></li>
       <div class="part-when"><span class="pill ok">Done</span> 2026-09-28. <b>ST VL53L5CX</b> (SATEL breakout) — 8×8 time-of-flight grid, I²C, up to ~4 m. It goes <b>sensor → Pi → FC</b>: ArduPilot does not read it directly. The camera says <em>what</em>; the sensor says <em>how far</em>.</div>
     </div>
     <div class="note ok"><span class="note-h">Result</span>
-      Gate passed 2026-09-28 against a wall of boxes: tape 50 cm → 54–56 cm, tape 100 cm → 98–104 cm (±5 cm, no scaling error).
+      Gate passed 2026-09-28 against a wall of boxes: tape 50 cm → 54–56 cm, tape 100 cm → 98–104 cm (maximum error 6 cm, no scaling error).
       On <code>/detect</code>: the 8×8 grid in cm, a distance on every box, <code>nearest … cm</code> top left.</div>
     <h3>3.1 How it is wired and run</h3>
     <div class="tw"><table><thead><tr><th>SATEL</th><th>Pi pin</th><th>SATEL</th><th>Pi pin</th></tr></thead><tbody>
@@ -889,7 +889,7 @@ media-ctl -p</pre></div></div></li>
       <li class="step"><input type="checkbox" id="r8" checked><div class="step-b"><label for="r8" class="step-t">Sensor beside the camera, facing the same way <span class="pill ok">Done</span></label>
         <div class="step-d">Its 45° view sits inside the camera's; <code>--tof-fov 0.64,1.10</code> tells the Pi where, so each box gets the right zones. Under ~30 cm the two views are visibly offset (parallax) — on the drone mount them as close together as possible.</div></div></li>
       <li class="step"><input type="checkbox" id="r9" checked><div class="step-b"><label for="r9" class="step-t">Gate: readings match a tape measure <span class="pill ok">Passed</span></label>
-        <div class="step-d">Against a wall of boxes: 50 cm → 54–56 cm, 100 cm → 98–104 cm. ±5 cm.</div></div></li>
+        <div class="step-d">Against a wall of boxes: 50 cm → 54–56 cm, 100 cm → 98–104 cm. Maximum error 6 cm.</div></div></li>
     </ol>
   </section>
 

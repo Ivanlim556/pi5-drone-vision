@@ -229,7 +229,7 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - Cup check: measured by hand ~25 cm → sensor zone 26 cm, box label 0.21 m.
 - Safety: an I²C error no longer kills the reader thread, and a grid older than 0.5 s is dropped (a stale distance looks valid).
 - Parallax: sensor and camera are a few cm apart, so under ~30 cm the grid is visibly offset from the picture; fine beyond that. On the drone, mount them as close together as possible.
-- **Phase 3 gate passed 2026-09-28** (3 boxes as a wall): tape 50 cm → sensor 54–56 cm; tape 100 cm → **98–104 cm**. Error does not grow with distance (no scaling) — the +5 cm at 50 was most likely the tape's start point. ±5 cm.
+- **Phase 3 gate passed 2026-09-28** (3 boxes as a wall): tape 50 cm → sensor 54–56 cm; tape 100 cm → **98–104 cm**. Error does not grow with distance (no scaling) — the +5 cm at 50 was most likely the tape's start point. maximum error 6 cm (+4–6 cm at 50 cm, −2/+4 cm at 1 m).
 - The script now power-cycles the sensor (PWREN low → high) at every start: after a knocked wire it answered at 0x29 but was stuck half-started (firmware upload timed out).
 - Keep the desk/frame out of the sensor's view.
 

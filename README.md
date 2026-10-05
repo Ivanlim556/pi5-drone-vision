@@ -68,7 +68,7 @@ Nothing needs a keyboard, screen or SSH — power on and within ~40 s:
 | 10-min run | 0 link errors, 63–65 °C, `throttled=0x0` | 0 restarts, 55–60 °C, `throttled=0x0` |
 | Long run | — | 77 h: 0 camera errors, 0 sensor freezes (I²C 100 kHz) |
 
-Distance sensor: tape 50 cm → 54–56 cm, 100 cm → 98–104 cm (±5 cm). MAVLink: ~10 obstacle reports a second.
+Distance sensor: tape 50 cm → 54–56 cm, 100 cm → 98–104 cm (maximum error 6 cm). MAVLink: ~10 obstacle reports a second.
 
 What the flight controller receives from that same scene — `laptop/fc_view.py` (`--test 4 --save radar.png` writes it
 without a window): 8 slices across the 45° in front, 8.5 reports a second, nearest 23–25 cm, plus the warnings.
