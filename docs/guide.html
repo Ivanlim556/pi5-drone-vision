@@ -238,7 +238,7 @@
     <div class="tw"><table><thead><tr><th>Phase</th><th>What it adds</th><th>Gate</th><th>Status</th></tr></thead><tbody>
       <tr><td class="n">0</td><td><b>Pi 5 + Camera Module 3</b> — stream, web pages, detection on the CPU</td><td>148 ms · 10-min soak · 15 fps detection at 66–69 °C</td><td><span class="pill ok">Done</span> 2026-09-26</td></tr>
       <tr><td class="n">1</td><td><b>Hailo</b> — detection off the CPU</td><td>30 fps boxes · <code>throttled=0x0</code></td><td><span class="pill ok">Done</span> 2026-09-28</td></tr>
-      <tr><td class="n">2</td><td><b>AR0234</b> — replaces the CM3</td><td>Phase 0 gates again · greyscale benchmark</td><td><span class="pill ok">Working</span> 2026-10-05 · cold-boot retest before flight</td></tr>
+      <tr><td class="n">2</td><td><b>AR0234</b> — replaces the CM3</td><td>Phase 0 gates again · greyscale benchmark</td><td><span class="pill ok">Done</span> 2026-10-05 · bench-complete, release v2.0</td></tr>
       <tr><td class="n">3</td><td><b>Distance sensor</b> (VL53L5CX)</td><td>Matches a tape measure</td><td><span class="pill ok">Done</span> 2026-09-28</td></tr>
       <tr><td class="n">4</td><td><b>Obstacle avoidance</b> — the FC avoids what the Pi reports</td><td>Simulator → props off → tethered → flight</td><td><span class="pill warn">In progress</span> reports live; real FC bench test next</td></tr>
       <tr><td class="n">—</td><td><b>On the drone</b> — power, mounting, radios, FC link</td><td>Bench with motors, props off</td><td>Any time after 1</td></tr>
@@ -248,8 +248,9 @@
       <b>Working:</b> the <b>AR0234</b> (mono, global shutter, 70° lens) streaming 1280×800 at 30 fps, Hailo detection at
       30 fps, VL53L5CX distances aligned to it, MAVLink obstacle reports (checked with <code>fc_view.ps1</code>), flight logs,
       start at power-on. CM3 version on GitHub as <code>v1.0-cm3</code>; switch back any time with <code>sudo camera cm3</code>.<br>
-      <b>Next, in order:</b> 1 — FC bench test, props off (4.1). 2 — before flight: cold-boot retest (ad17), ad2/ad4 checks,
-      camera + sensor in one mount, soldered sensor wires. 3 — YOLO trained on the drone camera's own photos.<br>
+      <b>Handed over to the team</b> (Ivan's Pi side is bench-complete, GitHub <code>v2.0-ar0234</code>): 1 — FC bench test,
+      props off (4.1). 2 — drone mounting: camera + sensor in one mount, soldered sensor wires, lens lock, ad2/ad4 checks.
+      3 — optional: YOLO trained on the drone camera's own photos. Avoidance tuning is the FC team's part. See HANDOVER.html 9.<br>
       <b>Ask the team:</b> ArduPilot version · which <code>SERIALn</code> is J11.</div>
 
     <h3>Using it today</h3>
@@ -686,7 +687,7 @@ cd ~/detect &amp;&amp; .venv/bin/python pi_detect.py --test 150        # live fe
         <div class="step-d"><span class="pill ok">Pass</span> About the CM3's 148 ms or better &nbsp; <span class="pill warn">Else</span> —</div></div></li>
       <li class="step"><input type="checkbox" id="ad16" checked><div class="step-b"><label for="ad16" class="step-t"><span class="pill rm">Remote</span> 10-minute run</label>
         <div class="step-d"><span class="pill ok">Pass</span> No restarts, <code>throttled=0x0</code>, no CSI/CRC errors in <code>dmesg</code> &nbsp; <span class="pill warn">Else</span> Errors that come and go = cable/connector or link speed (<code>link-frequency=</code>)</div></div></li>
-      <li class="step"><input type="checkbox" id="ad17"><div class="step-b"><label for="ad17" class="step-t"><span class="pill warn">Provisional</span> <span class="pill at">At the Pi</span><span class="pill rm">Remote</span> 10 cold boots (power off/on)</label>
+      <li class="step"><input type="checkbox" id="ad17" checked><div class="step-b"><label for="ad17" class="step-t"><span class="pill warn">Skipped</span> <span class="muted" style="font-weight:400;font-size:13px">2/2 recorded passed, no failure seen in ~10 rounds; full retest dropped 2026-10-05</span> <span class="pill at">At the Pi</span><span class="pill rm">Remote</span> 10 cold boots (power off/on)</label>
         <div class="step-d"><span class="pill ok">Pass</span> Chip ID read 10 of 10 (<code>dmesg | grep -c 'Success reading chip id'</code> each time) &nbsp; <span class="pill warn">Else</span> 9/10 is a fail — power timing: try <code>dtoverlay=ar0234-gamuda-power,delay-us=…</code></div></div></li>
       <li class="step"><input type="checkbox" id="ad18" checked><div class="step-b"><label for="ad18" class="step-t"><span class="pill at">At the Pi</span><span class="pill rm">Remote</span> Detection on greyscale: same scene, CM3 vs AR0234</label>
         <div class="step-d"><span class="pill ok">Pass</span> Note how much accuracy drops &nbsp; <span class="pill warn">Else</span> Feeds the round-2 training (greyscale)</div></div></li>

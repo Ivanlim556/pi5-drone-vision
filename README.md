@@ -6,7 +6,7 @@ and reports obstacles to the flight controller over **MAVLink** (ArduPilot `OBST
 
 | Camera | Role | Release |
 |---|---|---|
-| **AR0234** — in-house global-shutter mono board ([`hardware/ar0234-board/`](hardware/ar0234-board/README.md)) | **Main camera** since 2026-10-05 | `v2.0-ar0234` (pre-release) |
+| **AR0234** — in-house global-shutter mono board ([`hardware/ar0234-board/`](hardware/ar0234-board/README.md)) | **Main camera** since 2026-10-05 | `v2.0-ar0234` (latest) |
 | Raspberry Pi **Camera Module 3** | **Backup** — one command switches back | `v1.0-cm3` |
 
 Scope: this repository is the Pi side, ending at the MAVLink obstacle reports. The avoidance itself (ArduPilot
@@ -99,7 +99,7 @@ supplies caused brownouts and freezes).
 | `pi/ar0234/camera` | `sudo camera cm3` / `sudo camera ar0234` — switches boot config **and** stream config |
 | `pi/ar0234/ar0234-force-mono.patch` | Driver patch: the mono sensor reports the colour chip ID |
 | `pi/ar0234/ar0234-gamuda-power-overlay.dts` | Pi 5 power-timing overlay for the AR0234 board |
-| `pi/ar0234/bootcheck.sh` | Logs chip ID + stream at every boot (cold-boot test) |
+| `pi/ar0234/bootcheck.sh` | Optional: logs chip ID + stream at every boot (user crontab `@reboot`) |
 | `hardware/ar0234-board/` | The camera board: schematic, Gerbers, BOM, CPL, netlist, photos |
 | `laptop/fc_view.py` | Stand-in flight controller: radar of what ArduPilot would receive |
 | `laptop/detect.py` | YOLO on the laptop GPU from the Pi's stream |
@@ -182,8 +182,15 @@ fix: `docs/guide.html` and `docs/PROGRESS.md`.
 - VL53L5CX: ~4 m indoors, much less in sunlight, **45° forward only** (the FC knows nothing about the sides);
   glass may be invisible to it; a hand at 1 m is smaller than one of its zones.
 - The real flight controller link (USB / J11 UART) is still to test with the FC team; so far a laptop stand-in.
-- AR0234: cold-boot test 2/2 recorded (full 10/10 skipped); lens lock and a joint camera + sensor mount needed
-  for flight; latency could drop ~35 ms by letting rpicam-vid publish RTSP directly (no ffmpeg).
+- AR0234: lens lock and a joint camera + sensor mount needed for flight; latency could drop ~35 ms by letting
+  rpicam-vid publish RTSP directly (no ffmpeg).
+
+## Status and handover
+
+**v2.0 is bench-complete** (Pi side): camera, detection, distance, MAVLink obstacle reports all working and tested.
+Drone integration is handed over to the team, in order: FC bench test over USB → J11 wired link → avoidance
+settings (FC team) → mounting (camera + sensor in one mount, soldered sensor wires, lens lock, 5 V/5 A BEC).
+Details: `docs/guide.html` (status box) and the team handover page.
 
 ## Credits
 

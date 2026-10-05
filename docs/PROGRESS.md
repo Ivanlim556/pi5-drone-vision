@@ -298,3 +298,8 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - 2026-10-05: **ad17 full 10/10 retest skipped by decision** — stays at 2/2 recorded + no failures seen; the boot recorder stays installed if it is ever wanted.
 - 21:09: new `camera` switch installed in /usr/local/bin (identical to `camera.new`); `sudo camera cm3|ar0234` now swaps cam.yml too.
 - **Scope (2026-10-05):** auto-avoidance in ArduPilot (AVOID_*/OA_* tuning, SITL, flight behaviour) is the **FC teammates'** job. Ivan's part ends at the Pi → FC interface: correct OBSTACLE_DISTANCE/HEARTBEAT/STATUSTEXT over MAVLink (live-verified 2026-10-05: 51 obstacle msgs in 6 s, 8 slices, frame 12).
+
+## 2026-10-05 evening: v2.0 final, handover
+- Cold-boot retest **cleared** (not needed). Drone mounting will most likely not be done within the internship → handed over to the team.
+- GitHub: v2.0-ar0234 made the final/latest release; README "Status and handover"; hardware/ar0234-board/ with schematic, Gerbers, BOM, CPL, photos; AR0234 /detect picture + FC radar picture (`fc_view.py --test 4 --save`).
+- HANDOVER.html 9 rewritten: done / left for the team (FC bench test → J11 → avoidance (FC team) → mounting) / before Ivan leaves (GitHub collaborators or transfer, passwords, Tailscale).
