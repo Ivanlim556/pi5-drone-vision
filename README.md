@@ -107,6 +107,7 @@ supplies caused brownouts and freezes).
 | `training/` | Indoor dataset config and helpers for YOLO fine-tuning |
 | `docs/guide.html` | Full build guide, ordered by phase (open in a browser) |
 | `docs/PROGRESS.md` | Build log: every result, fault and fix |
+| `docs/HANDOVER.html` | Team handover: log in, commands, FC link, wiring, troubleshooting, what's left (no passwords) |
 
 ## Setup
 
@@ -190,7 +191,9 @@ fix: `docs/guide.html` and `docs/PROGRESS.md`.
 **v2.0 is bench-complete** (Pi side): camera, detection, distance, MAVLink obstacle reports all working and tested.
 Drone integration is handed over to the team, in order: FC bench test over USB → J11 wired link → avoidance
 settings (FC team) → mounting (camera + sensor in one mount, soldered sensor wires, lens lock, 5 V/5 A BEC).
-Details: `docs/guide.html` (status box) and the team handover page.
+Details: **[`docs/HANDOVER.html`](docs/HANDOVER.html)** — the team handover page (log in, everyday commands, FC link,
+wiring, troubleshooting, what's left; download and open in a browser) — and `docs/guide.html` (status box).
+Passwords are not in this repository: ask the team lead.
 
 ## Credits
 

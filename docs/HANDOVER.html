@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drone Vision Handover</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1d1d1b;--mute:#5f5f5a;--line:#e2e1dc;--acc:#0b6bcb;--code:#f0efeb;--ok:#1a7f37;--warn:#b35900;--bad:#c62828}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--card:#1f1f1d;--ink:#ecebe6;--mute:#a3a29b;--line:#34332f;--acc:#5aa9ff;--code:#2a2926;--ok:#4cc26a;--warn:#f0a050;--bad:#ff6b6b}}
+:root[data-theme="dark"]{--bg:#161615;--card:#1f1f1d;--ink:#ecebe6;--mute:#a3a29b;--line:#34332f;--acc:#5aa9ff;--code:#2a2926;--ok:#4cc26a;--warn:#f0a050;--bad:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:900px;margin:0 auto;padding:28px 16px 60px}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:20px;margin:36px 0 10px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:20px 0 6px}
+.sub{color:var(--mute);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.warn{border-left:4px solid var(--warn)}.bad{border-left:4px solid var(--bad)}.ok{border-left:4px solid var(--ok)}
+code,pre{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;background:var(--code);border-radius:5px}
+code{padding:1px 5px}
+pre{padding:10px 12px;overflow-x:auto;margin:6px 0;white-space:pre}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+th{color:var(--mute);font-weight:600}
+a{color:var(--acc)}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.flow span{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px}
+.flow b{color:var(--mute);font-weight:400}
+nav{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+ol li,ul li{margin:4px 0}
+</style>
+</head>
+<body>
+<main>
+<h1>Drone Vision: Handover</h1>
+<p class="sub">Raspberry Pi 5 obstacle detection for the indoor drone. Prepared by Ivan Lim (intern), 1 Oct 2026.<br>
+Read sections 1 to 3 before touching anything.</p>
+
+<nav>
+<a href="#what">1. What it is</a><a href="#login">2. Log in to the Pi</a><a href="#see">3. See it working</a>
+<a href="#cmds">4. Everyday commands</a><a href="#fc">5. Flight controller</a><a href="#hw">6. Wiring</a>
+<a href="#fix">7. When it breaks</a><a href="#files">8. Where everything is</a><a href="#next">9. Handover status</a>
+</nav>
+
+<h2 id="what">1. What the system does</h2>
+<div class="flow">
+<span>Camera (AR0234 since 5 Oct; CM3 as backup)</span><b>→</b><span>Pi 5 + Hailo-8L AI chip<br><small>YOLO finds objects, 30 fps</small></span><b>→</b>
+<span>VL53L5CX distance sensor<br><small>8×8 grid, up to 4 m</small></span><b>→</b><span>MAVLink to the flight controller<br><small>obstacle distances, 10×/s</small></span>
+</div>
+<ul>
+<li>The camera picture goes to a web page (<code>/cam</code>). The same picture with boxes and distances in cm goes to <code>/detect</code>.</li>
+<li>The Pi combines each detected object with the sensor distance and sends ArduPilot an <code>OBSTACLE_DISTANCE</code> message: 8 slices across the 45° view in front, in cm. ArduPilot uses it to stop or slide around the obstacle.</li>
+<li>Everything <b>starts by itself at power-on</b> (about 40 s). No keyboard or screen needed.</li>
+<li>Each run writes a log (one CSV row per frame) to <code>~/detect/logs/</code>.</li>
+</ul>
+
+<h2 id="login">2. Log in to the Pi</h2>
+<div class="card">
+<div class="tw"><table>
+<tr><th>Username</th><td><code>pi</code></td></tr>
+<tr><th>Password</th><td><b>ask the team lead</b> (not stored in the repository)</td></tr>
+<tr><th>Hostname</th><td><code>pi5drone</code> (on the same WiFi: <code>pi5drone.local</code>)</td></tr>
+<tr><th>Office WiFi IP</th><td><code>192.168.0.110</code> (on <code>TP-Link_C6A4</code>; can change)</td></tr>
+<tr><th>Tailscale IP</th><td><code>[pi-tailscale-ip]</code> (only from a device on Ivan's Tailscale)</td></tr>
+<tr><th>WiFi it joins</th><td><code>TP-Link_C6A4</code> (office), <code>[phone-hotspot]</code> (Ivan's phone hotspot)</td></tr>
+</table></div>
+</div>
+
+<h3>From a Windows laptop (PowerShell)</h3>
+<p>Connect your laptop to <b>the same WiFi as the Pi</b> (<code>TP-Link_C6A4</code>), then:</p>
+<pre>ssh pi@pi5drone.local</pre>
+<p>First time: type <code>yes</code>, then the password. Nothing shows while you type the password; that's normal. If <code>pi5drone.local</code> isn't found, use the IP: <code>ssh pi@192.168.0.110</code>. If that fails too, find the Pi's current IP in the router's client list.</p>
+<p><code>sudo</code> commands ask for the same password.</p>
+
+<h3>No network at all?</h3>
+<p>Plug a screen into the Pi's <b>HDMI 0</b> port (next to the USB-C power) and a USB keyboard, then log in with the same username and password.</p>
+
+<div class="card warn"><b>Change the passwords</b> once the handover is done: the Pi login with <code>passwd</code>; the web login in <code>/home/pi/mediamtx/cam.yml</code> (<code>authInternalUsers</code>). Then update this page.</div>
+
+<h2 id="see">3. See it working</h2>
+<p>From a laptop on the same WiFi, open in Chrome or Edge:</p>
+<div class="tw"><table>
+<tr><th>Page</th><th>Shows</th></tr>
+<tr><td><a href="http://pi5drone.local:8889/detect">http://pi5drone.local:8889/detect</a></td><td>Camera + YOLO boxes + distances in cm (the main one)</td></tr>
+<tr><td><a href="http://pi5drone.local:8889/cam">http://pi5drone.local:8889/cam</a></td><td>Raw camera, lowest delay (~0.15 s)</td></tr>
+</table></div>
+<p>The pages ask for a login: user <code>viewer</code>, password <b>ask the team lead</b> (separate from the Pi password). Delay of 1–2 s or stutter usually means a weak power supply or poor WiFi.</p>
+
+<h2 id="cmds">4. Everyday commands (on the Pi, after <code>ssh</code>)</h2>
+<div class="tw"><table>
+<tr><th>To do this</th><th>Run</th></tr>
+<tr><td>Is everything running?</td><td><code>systemctl is-active mediamtx pi-detect</code> → two lines of <code>active</code></td></tr>
+<tr><td>Restart detection</td><td><code>sudo systemctl restart pi-detect</code></td></tr>
+<tr><td>Restart the camera stream</td><td><code>sudo systemctl restart mediamtx</code> (then restart pi-detect too)</td></tr>
+<tr><td>Detection messages / errors</td><td><code>journalctl -u pi-detect -b --no-pager | tail -30</code></td></tr>
+<tr><td>Stop detection</td><td><code>sudo systemctl stop pi-detect</code> (off until reboot) · <code>sudo systemctl disable pi-detect</code> (stays off)</td></tr>
+<tr><td>Temperature / power OK?</td><td><code>vcgencmd measure_temp; vcgencmd get_throttled</code> → want below 80 °C and <code>throttled=0x0</code></td></tr>
+<tr><td>Latest flight log</td><td><code>ls -t ~/detect/logs | head -3</code></td></tr>
+<tr><td>Copy logs to your laptop (PowerShell)</td><td><code>scp "pi@pi5drone.local:detect/logs/*.csv" .</code></td></tr>
+<tr><td>Which camera is set?</td><td><code>camera</code> · switch: <code>sudo camera cm3</code> or <code>sudo camera ar0234</code>, then <code>sudo reboot</code></td></tr>
+<tr><td>Shut down safely</td><td><code>sudo poweroff</code>, wait for the green LED to stop, then unplug</td></tr>
+</table></div>
+<div class="card bad"><b>Never</b> stop the detector with <code>kill</code> or <code>pkill</code>. That leaves the Hailo chip locked ("Device disconnected") until a reboot. Always use <code>systemctl</code>.</div>
+
+<h2 id="fc">5. Talking to the flight controller (ArduPilot)</h2>
+<p>The Pi sends three MAVLink messages, from system 1, component 196 (obstacle avoidance):</p>
+<div class="tw"><table>
+<tr><th>Message</th><th>Rate</th><th>Meaning</th></tr>
+<tr><td><code>OBSTACLE_DISTANCE</code></td><td>10 Hz</td><td>8 slices of 5.625° from −20° (left) to +20° (right), in cm, body frame. <code>401</code> = clear to 4 m, <code>65535</code> = no data (sides/back).</td></tr>
+<tr><td><code>HEARTBEAT</code></td><td>1 Hz</td><td>"Companion computer alive" (type 18 = onboard controller)</td></tr>
+<tr><td><code>STATUSTEXT</code></td><td>≤1/s</td><td>Warning text such as <code>OBSTACLE person 85cm left</code> when something is within 1.5 m. It shows in Mission Planner's Messages tab.</td></tr>
+</table></div>
+
+<h3>Right now (no FC connected)</h3>
+<p>The Pi waits on <b>UDP port 14550</b>. To see what an FC would get, run on Ivan's laptop in the project folder: <code>.\fc_view.ps1</code>. That opens a radar window.</p>
+
+<h3>Bench test with the real FC: propellers OFF</h3>
+<ol>
+<li>Connect the FC to a Pi USB port. On the Pi, <code>ls /dev/ttyACM*</code> should show <code>/dev/ttyACM0</code>.</li>
+<li>Change the line in <code>/etc/systemd/system/pi-detect.service</code> (use <code>sudo nano</code>): add <code>--mavlink /dev/ttyACM0</code> to the end of the <code>ExecStart=</code> line. Then run <code>sudo systemctl daemon-reload &amp;&amp; sudo systemctl restart pi-detect</code>.</li>
+<li>In Mission Planner, set: <code>PRX1_TYPE = 2</code> (MAVLink), <code>AVOID_ENABLE = 3</code>, <code>AVOID_MARGIN = 1.0</code>, <code>AVOID_BEHAVE = 1</code> (stop). Indoors also set <code>LOIT_SPEED = 100</code> (1 m/s). Reboot the FC.</li>
+<li>Mission Planner → Ctrl-F → <b>Proximity</b>: move a hand in front of the sensor and the distance should appear in front.</li>
+</ol>
+<p>For flight, use the wired UART: FC port <b>J11</b> → Pi pins 8 (TX), 10 (RX), 6 (GND). This needs <code>dtparam=uart0=on</code> in <code>/boot/firmware/config.txt</code>, <code>--mavlink /dev/ttyAMA0,921600</code>, and on the FC <code>SERIALn_PROTOCOL = 2</code>, <code>SERIALn_BAUD = 921</code>. <b>Which SERIALn is J11 is still unconfirmed</b>; check with the FC firmware owner.</p>
+
+<h2 id="hw">6. Hardware and wiring</h2>
+<div class="tw"><table>
+<tr><th>Part</th><th>Notes</th></tr>
+<tr><td>Raspberry Pi 5</td><td>Raspberry Pi OS (Debian trixie). <b>Power with a 5 V 5 A USB-C PD supply</b>; weaker supplies cause lag and random reboots.</td></tr>
+<tr><td>Camera Module 3</td><td>On <b>CAM/DISP 0</b>. <b>CAM1 on this Pi is faulty, don't use it.</b> The ribbon is fragile: reseat it with the power off.</td></tr>
+<tr><td>AI HAT+ (Hailo-8L, 13 TOPS)</td><td>On the PCIe connector. Model: <code>/usr/share/hailo-models/yolov8s_h8l.hef</code></td></tr>
+<tr><td>Active cooler</td><td>Needed. Without it the Pi throttles at 85 °C.</td></tr>
+<tr><td>AR0234 board (in-house) — <b>in use since 5 Oct 2026</b></td><td>Mono, global shutter, 70° lens (M2504ZH05S 4 mm, focused at 3–5 m — don't turn it). On <b>CAM/DISP 0</b>. The cable's bare contacts must face the pads at <b>both</b> ends (blue stiffener away from the board): the wrong way round gives <code>failed to read chip id</code>. The distance sensor sits on the camera's right; keep them together, facing the same way. Stream: 1280×800 at 30 fps, ~0.18 s delay. Its driver has a small local patch (<code>ar0234-force-mono.patch</code>) — after any <code>apt upgrade</code> that updates <code>ar0234-rpi-dkms</code> or the kernel, re-apply it (guide 2.0 box / GitHub README).</td></tr>
+</table></div>
+
+<h3>VL53L5CX-SATEL → Pi header</h3>
+<div class="tw"><table>
+<tr><th>Sensor pin</th><th>Pi pin</th><th>Sensor pin</th><th>Pi pin</th></tr>
+<tr><td>GND</td><td>6</td><td>SCL</td><td>5</td></tr>
+<tr><td>IOVDD</td><td>1 (3.3 V)</td><td>SDA</td><td>3</td></tr>
+<tr><td>AVDD</td><td>2 (5 V)</td><td>I2C_RST</td><td>9 (GND)</td></tr>
+<tr><td>PWREN</td><td>11 (GPIO17)</td><td>INT</td><td>7 (unused)</td></tr>
+<tr><td>LPn</td><td>13 (GPIO27)</td><td></td><td></td></tr>
+</table></div>
+<p>I²C bus 1, address <code>0x29</code>. The sensor faces the same way as the camera. Peel off the protective film.</p>
+
+<h2 id="fix">7. When something breaks</h2>
+<div class="tw"><table>
+<tr><th>Symptom</th><th>Likely cause → fix</th></tr>
+<tr><td>Can't <code>ssh</code></td><td>Laptop on a different WiFi, or the Pi hasn't booted (wait 1 min). Try the IP instead of <code>.local</code>. Last resort: HDMI + keyboard.</td></tr>
+<tr><td>Web page lags or freezes</td><td>Weak power supply → use the 5 A PD supply. Check <code>vcgencmd get_throttled</code>.</td></tr>
+<tr><td>AR0234: no picture, <code>failed to read chip id</code></td><td>Cable the wrong way round or not seated. Power off, check the contacts face the pads at both ends, reseat.</td></tr>
+<tr><td>AR0234: purple-tinted picture</td><td>The mono fix is missing: <code>cat /sys/module/ar0234/parameters/force_mono</code> must say <code>Y</code> — re-apply the patch (see above).</td></tr>
+<tr><td>No picture; log says <code>frontend has timed out</code></td><td>Camera ribbon loose. Power off, reseat both ends (CAM0), and don't move the camera while it's running.</td></tr>
+<tr><td>Boxes but no distances</td><td>Sensor frozen. The software power-cycles it by itself within 3 s. If it stays dead: <code>pinctrl get 2,3</code> should show <code>hi</code> for both. If SDA is <code>lo</code>, power off and reseat the SDA wire (pin 3).</td></tr>
+<tr><td>Log says <code>Device disconnected</code> (Hailo)</td><td>Someone used <code>kill</code>. Run <code>sudo reboot</code>.</td></tr>
+<tr><td>Distances look mirrored (obstacle on the wrong side)</td><td>The sensor was turned. Add <code>--tof-flip ud</code> (or <code>lr</code>, <code>udlr</code>) to the <code>ExecStart=</code> line of the service file. The default is <code>udlr</code>.</td></tr>
+<tr><td>Wrong date in log names</td><td>Normal: the Pi has no clock battery. Logs are numbered (<code>0087_…</code>); trust the <code>t_s</code> column.</td></tr>
+</table></div>
+
+<h2 id="files">8. Where everything is</h2>
+<div class="tw"><table>
+<tr><th>What</th><th>Where</th></tr>
+<tr><td>Code running on the Pi</td><td><code>/home/pi/detect/</code>: <code>pi_detect.py</code> (main), <code>mavlink_out.py</code>, <code>tof_test.py</code></td></tr>
+<tr><td>Services</td><td><code>/etc/systemd/system/pi-detect.service</code>, <code>mediamtx.service</code> (config <code>/home/pi/mediamtx/cam.yml</code>)</td></tr>
+<tr><td>Source code + releases</td><td>GitHub (private): <a href="https://github.com/Ivanlim556/pi5-drone-vision">Ivanlim556/pi5-drone-vision</a>. <code>v2.0-ar0234</code> = current (AR0234), <code>v1.0-cm3</code> = CM3 version. Ask Ivan for access.</td></tr>
+<tr><td>Full step-by-step log</td><td>OneDrive <code>Gamuda intern\pi5-fpv-bringup\PROGRESS.md</code> (every problem hit so far and how it was fixed)</td></tr>
+<tr><td>Bring-up guide</td><td><code>guide.html</code> in the same folder (includes the AR0234 arrival-day checklist)</td></tr>
+<tr><td>SD card backup</td><td>Ivan's laptop <code>C:\Users\ivan\pi5-backups\cardA-20260930-1413\</code></td></tr>
+</table></div>
+
+<h2 id="next">9. Handover status: what's done, what's left for the team</h2>
+<p>Ivan's part was the <b>Pi side</b>: camera → detection → distance → MAVLink obstacle reports to the FC. That part is
+<b>finished and tested on the bench</b> (GitHub release <code>v2.0-ar0234</code>). The avoidance itself (ArduPilot settings,
+flying) is the FC team's part.</p>
+
+<h3>Done (Sep–Oct 2026)</h3>
+<ul>
+<li><b>AR0234 camera board</b> designed, made (JLCPCB) and working: 1280×800 at 30 fps, ~0.18 s delay, mono fix in the driver. Design files on GitHub: <code>hardware/ar0234-board/</code>.</li>
+<li><b>Detection</b> on the Hailo-8L: YOLOv8s at 30 fps, starts by itself at power-on.</li>
+<li><b>Distance sensor</b> VL53L5CX: ±5 cm, aligned to the AR0234; 0 freezes in 77 h since I²C was lowered to 100 kHz.</li>
+<li><b>Obstacle reports to the FC</b> (MAVLink <code>OBSTACLE_DISTANCE</code> ~10/s + heartbeat + warnings), checked live with the laptop stand-in <code>fc_view.ps1</code>.</li>
+<li><b>CM3 kept as a backup</b>: <code>sudo camera cm3 &amp;&amp; sudo reboot</code> switches everything back.</li>
+<li>Logs, watchdogs, auto-restart; full guide, build log and this page.</li>
+</ul>
+
+<h3>Left for the team, in order</h3>
+<div class="tw"><table>
+<tr><th>#</th><th>Task</th><th>Notes</th></tr>
+<tr><td>1</td><td><b>Bench test with the real FC</b>, props off</td><td>USB first (section 5): Mission Planner → Proximity must show the obstacles in the right direction. The Pi side needs only <code>--mavlink /dev/ttyACM0</code>.</td></tr>
+<tr><td>2</td><td><b>Wired link on J11</b></td><td><code>--mavlink /dev/ttyAMA0,921600</code>, <code>dtparam=uart0=on</code>, FC <code>SERIALn_PROTOCOL = 2</code>, <code>SERIALn_BAUD = 921</code> — confirm which SERIALn is J11.</td></tr>
+<tr><td>3</td><td><b>Avoidance settings + tests</b> (FC team)</td><td>Start with Loiter + <code>AVOID_BEHAVE = 1</code> (stop): the sensor sees only 45° forward, nothing at the sides.</td></tr>
+<tr><td>4</td><td><b>Mounting on the drone</b></td><td>Camera and sensor in one mount, sensor on the camera's <b>right</b>, turned as now (otherwise redo the hand test, guide 3.1 / <code>--tof-flip</code>). Lock the lens ring or add nail polish. <b>Solder</b> the sensor wires (jumpers came loose in transport). Strain-relieve the ribbon; fold it at 45° rather than rotating the camera. 5 V / 5 A BEC for the Pi.</td></tr>
+<tr><td>5</td><td>Short + cable checks on the board</td><td>Guide ad2 / ad4, once, before it flies.</td></tr>
+<tr><td>6</td><td>Optional</td><td>Indoor YOLO trained on the drone camera's own photos · ~35 ms less delay by dropping ffmpeg (guide 2.6) · more sensors for the sides.</td></tr>
+</table></div>
+
+<h3>Before Ivan leaves</h3>
+<ul>
+<li><b>GitHub access:</b> the repository is private under Ivan's account — add the teammates as collaborators (Settings → Collaborators) or transfer it to the team/organisation, so the code stays reachable.</li>
+<li><b>Passwords:</b> hand over the Pi and web-viewer passwords, then change them (section 2).</li>
+<li><b>Tailscale:</b> remote access goes through Ivan's account — on the same WiFi use <code>pi5drone.local</code>, or add the Pi to a team account.</li>
+</ul>
+<div class="card ok">Safety: propellers <b>off</b> for every bench test. The avoidance only sees a 45° cone in front, nothing to the sides or behind.</div>
+</main>
+</body>
+</html>
