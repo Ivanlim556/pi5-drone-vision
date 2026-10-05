@@ -4,54 +4,85 @@ Onboard vision for an obstacle-avoiding drone: a **Raspberry Pi 5** streams live
 **YOLOv8 on a Hailo-8L**, measures distance with an **ST VL53L5CX** 8×8 time-of-flight sensor, combines the two,
 and reports obstacles to the flight controller over **MAVLink** (ArduPilot `OBSTACLE_DISTANCE`).
 
-> **Milestone v1.0 — Camera Module 3 (2026-09-30).** The full pipeline works on the bench with the Raspberry Pi
-> Camera Module 3.
->
-> **v2.0 — AR0234 (2026-10-05, pre-release).** The in-house **AR0234** global-shutter mono camera board runs the same
-> pipeline: 1280×800 at 30 fps, detection 29.9 fps, ~180 ms glass to glass. Cold-boot retest still to do before flight.
+| Camera | Role | Release |
+|---|---|---|
+| **AR0234** — in-house global-shutter mono board ([`hardware/ar0234-board/`](hardware/ar0234-board/README.md)) | **Main camera** since 2026-10-05 | `v2.0-ar0234` (pre-release) |
+| Raspberry Pi **Camera Module 3** | **Backup** — one command switches back | `v1.0-cm3` |
 
-![Live /detect page: boxes, distance grid, nearest obstacle](docs/images/detect-with-distance.jpg)
+Scope: this repository is the Pi side, ending at the MAVLink obstacle reports. The avoidance itself (ArduPilot
+`AVOID_*` / `OA_*` tuning, flying) is the flight-controller team's part.
+
+![Live /detect page: boxes, distance grid, nearest obstacle (CM3)](docs/images/detect-with-distance.jpg)
 
 ## How it works
 
 ```
- Camera (CM3) ─CAM0─► MediaMTX ──► /cam    plain video, 30 fps, browser/RTSP
-                          │
-                          ▼
- Hailo-8L ◄─PCIe─► pi_detect.py ─┬─ YOLOv8s on the Hailo: "what"      (30 fps)
- VL53L5CX ─I²C──►  (own process) ├─ 8×8 distance grid: "how far"      (15 Hz)
-                                 ├─► /detect   video with boxes + distances ("cup 0.92  21 cm")
+ Camera ─CAM0─► MediaMTX ──► /cam    plain video, 30 fps, browser / RTSP
+ (AR0234 via rpicam-vid,          │
+  CM3 read directly)              ▼
+ Hailo-8L ◄─PCIe─► pi_detect.py ─┬─ YOLOv8s on the Hailo: "what"         (30 fps)
+ VL53L5CX ─I²C──►  (own process) ├─ 8×8 distance grid: "how far"         (~6–7 Hz at 100 kHz I²C)
+                                 ├─► /detect   video with boxes + distances ("person 0.80  47 cm")
                                  ├─► flight log  ~/detect/logs/NNNN_<date>.csv
                                  └─► MAVLink ──► flight controller (ArduPilot) / laptop fc_view
-                                      OBSTACLE_DISTANCE 10 Hz · HEARTBEAT 1 Hz · STATUSTEXT alerts
+                                      OBSTACLE_DISTANCE ~10 Hz · HEARTBEAT 1 Hz · STATUSTEXT alerts
 ```
 
 **The Pi reports, the flight controller decides, the pilot overrides.** Avoidance is driven by the distance
 sensor; YOLO only names what it is — an object YOLO doesn't know (a box, a wall) is still an obstacle.
 
-## Results (bench, CM3)
+## Automatic: what starts by itself
 
-| | Result |
+Nothing needs a keyboard, screen or SSH — power on and within ~40 s:
+
+1. **`mediamtx.service`** starts the camera server with `~/mediamtx/cam.yml`. For the AR0234 that file tells MediaMTX
+   to launch `rpicam-vid` itself and restart it if it stops (`runOnInit` / `runOnInitRestart`).
+2. **`pi-detect.service`** starts `pi_detect.py`, which by itself:
+   - uses the **Hailo-8L** if `/dev/hailo0` exists (`yolov8s_h8l.hef`), otherwise the CPU (`yolo11n-320.onnx`, 15 fps);
+   - reads `/boot/firmware/config.txt` to know **which camera** is selected and picks the matching distance-grid
+     orientation and field of view (AR0234: `lrt`, `0.58,0.92` · CM3: `udlr`, `0.64,1.10`);
+   - powers the VL53L5CX (PWREN/LPn), runs it in its own process and power-cycles it if it stops answering for 3 s;
+   - publishes `/detect`, writes the flight log, and sends MAVLink obstacle reports.
+3. Both services restart on any failure (`Restart=always`); a stalled video publisher is restarted by a watchdog.
+
+## Software and firmware (as running, 2026-10-05)
+
+| Layer | Version |
 |---|---|
-| Glass-to-glass latency, browser page | **148 ms** average (129–169 ms) |
-| Detection on the Hailo-8L (YOLOv8s, 640 px) | **~30 fps**, chip benchmark 58.8 fps; Pi CPU for detection 50–70 % |
-| Cross-check vs official YOLOv8s | same objects, scores within 0.02, boxes within a few px |
-| Distance sensor accuracy | tape 50 cm → 54–56 cm; tape 100 cm → 98–104 cm (±5 cm) |
-| MAVLink obstacle reports | 9–10 Hz received by the laptop stand-in FC |
-| 10-min soak (Hailo) | 0 restarts, `throttled=0x0`, 55–60 °C with a fan |
-| Laptop detection (RTX 3050) | ~30 fps, ~0.19 s delay |
-| Resilience | sensor power cut 6 s → detection kept logging at full rate, sensor reader auto-restarted |
+| OS / kernel | Raspberry Pi OS (Debian 13 trixie) 64-bit · `6.18.50+rpt-rpi-2712` · Pi EEPROM 2026-05-26 |
+| Hailo-8L | `hailo-all` 5.1.1 → HailoRT **4.23.0**, device firmware **4.23.0** · model `/usr/share/hailo-models/yolov8s_h8l.hef` (NMS on the chip) |
+| Camera stack | libcamera **0.7.2** (Kurokesu build `1:0.7.2+rpt20260817+krks4-1`, adds AR0234) · rpicam-apps 1.13.0 (stock) |
+| AR0234 driver | Kurokesu `ar0234-rpi-dkms` **0.1.2** + `pi/ar0234/ar0234-force-mono.patch` · tuning `ar0234_mono.json` |
+| AR0234 overlays | `dtoverlay=ar0234,4lane,cam0` + `dtoverlay=ar0234-gamuda-power` (this repo, Pi 5 power-up timing) |
+| Streaming | MediaMTX **v1.21.1** (WebRTC 8889, RTSP 8554, HLS 8888) |
+| Python 3.13.5 venv | pymavlink 2.4.50 · vl53l5cx-ctypes 0.0.3 · onnxruntime 1.30.0 · opencv-python-headless · numpy 2.5.3 · smbus2 |
+| Laptop | Python venv (uv) with Ultralytics + PyTorch CUDA for `detect.py`; pymavlink for `fc_view.py` |
+
+## Results (bench)
+
+| | AR0234 (main, 2026-10-05) | CM3 (backup, 2026-09-26/30) |
+|---|---|---|
+| Video | 1280×800 at 30 fps (full 1920×1200 view, 70° lens) | 1280×720 at 30 fps |
+| Glass-to-glass latency (browser) | **~180 ms** | **148 ms** |
+| Detection on the Hailo-8L | 29.9 fps · person 0.80, laptop 0.73 (mono does not hurt YOLO) | ~30 fps · matches official YOLOv8s within 0.02 |
+| 10-min run | 0 link errors, 63–65 °C, `throttled=0x0` | 0 restarts, 55–60 °C, `throttled=0x0` |
+| Long run | — | 77 h: 0 camera errors, 0 sensor freezes (I²C 100 kHz) |
+
+Distance sensor: tape 50 cm → 54–56 cm, 100 cm → 98–104 cm (±5 cm). MAVLink: ~10 obstacle reports a second.
 
 ![Stand-in flight controller: what ArduPilot would receive](docs/images/fc-view-radar.png)
 
 ## Hardware
 
-Raspberry Pi 5 (8 GB) · Raspberry Pi AI HAT+ 13 TOPS (Hailo-8L) · Camera Module 3 on **CAM/DISP 0** · ST
-VL53L5CX-SATEL on the GPIO header · fan on the Pi fan header · **5 V / 5 A USB-C PD supply** (weaker supplies
-caused brownouts and freezes).
+Raspberry Pi 5 (8 GB) · Raspberry Pi AI HAT+ 13 TOPS (Hailo-8L) · camera on **CAM/DISP 0** (this Pi's CAM1 is
+faulty) · ST VL53L5CX-SATEL on the GPIO header · fan on the Pi fan header · **5 V / 5 A USB-C PD supply** (weaker
+supplies caused brownouts and freezes).
 
-VL53L5CX-SATEL → GPIO (top of the AI HAT+): GND→6 · IOVDD→1 (3.3 V) · AVDD→2 (5 V, the SATEL has its own
-regulator) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) · SCL→5 · SDA→3 · I2C_RST→9 (GND) · INT→7 (optional).
+- **AR0234 board** — schematic, Gerbers, BOM, pick-and-place, photos, how it was designed (EasyEDA Pro) and made
+  (JLCPCB), test points and known limits: **[`hardware/ar0234-board/`](hardware/ar0234-board/README.md)**.
+  Lens: Arducam M12 4 mm (M2504ZH05S, ~70° across), focused at 3–5 m.
+- **VL53L5CX-SATEL → GPIO:** GND→6 · IOVDD→1 (3.3 V) · AVDD→2 (5 V) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) ·
+  SCL→5 · SDA→3 · I2C_RST→9 (GND) · INT→7 (optional). Mounted right beside the camera, facing the same way.
 
 ## Repository
 
@@ -60,8 +91,13 @@ regulator) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) · SCL→5 · SDA→3 · 
 | `pi/pi_detect.py` | The pipeline: detection (Hailo `.hef` or CPU `.onnx`), distance fusion, `/detect`, flight log, MAVLink |
 | `pi/mavlink_out.py` | Obstacle reports for ArduPilot (`OBSTACLE_DISTANCE`, `HEARTBEAT`, `STATUSTEXT`) |
 | `pi/tof_test.py` | Read and print the VL53L5CX 8×8 grid |
-| `pi/mediamtx/cam.yml`, `pi/systemd/*.service` | Camera server config and the two boot services |
-| `pi/ar0234/` | AR0234 power-timing device-tree overlay (Pi 5 version, covers both camera connectors) |
+| `pi/mediamtx/cam.yml` · `cam-ar0234.yml` | Camera server config: CM3 (MediaMTX reads the camera) · AR0234 (rpicam-vid feeds it) |
+| `pi/systemd/*.service` | The two boot services |
+| `pi/ar0234/camera` | `sudo camera cm3|ar0234` — switches boot config **and** stream config |
+| `pi/ar0234/ar0234-force-mono.patch` | Driver patch: the mono sensor reports the colour chip ID |
+| `pi/ar0234/ar0234-gamuda-power-overlay.dts` | Pi 5 power-timing overlay for the AR0234 board |
+| `pi/ar0234/bootcheck.sh` | Logs chip ID + stream at every boot (cold-boot test) |
+| `hardware/ar0234-board/` | The camera board: schematic, Gerbers, BOM, CPL, netlist, photos |
 | `laptop/fc_view.py` | Stand-in flight controller: radar of what ArduPilot would receive |
 | `laptop/detect.py` | YOLO on the laptop GPU from the Pi's stream |
 | `laptop/latency-test.html` | Stopwatch page for the glass-to-glass latency test |
@@ -69,54 +105,60 @@ regulator) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) · SCL→5 · SDA→3 · 
 | `docs/guide.html` | Full build guide, ordered by phase (open in a browser) |
 | `docs/PROGRESS.md` | Build log: every result, fault and fix |
 
-## Setup (short)
+## Setup
+
+### 1. Common (both cameras)
 
 On the Pi (Raspberry Pi OS 64-bit, trixie):
 ```bash
 sudo apt install -y dkms hailo-all i2c-tools          # Hailo-8L runtime 4.x (NOT hailo-h10-all)
 sudo raspi-config nonint do_i2c 0
-echo "dtparam=i2c_arm_baudrate=400000" | sudo tee -a /boot/firmware/config.txt
-# MediaMTX: download the linux_arm64 release to ~/mediamtx, copy pi/mediamtx/cam.yml there
+echo "dtparam=i2c_arm_baudrate=100000" | sudo tee -a /boot/firmware/config.txt   # 400 kHz froze the sensor now and then
+# MediaMTX v1.21.1: download the linux_arm64 release to ~/mediamtx
 python3 -m venv --system-site-packages ~/detect/.venv
 ~/detect/.venv/bin/pip install onnxruntime opencv-python-headless numpy vl53l5cx-ctypes smbus2 pymavlink
 cp pi/*.py ~/detect/
-sudo cp pi/systemd/*.service /etc/systemd/system/ && sudo systemctl enable --now mediamtx pi-detect
+cp pi/mediamtx/cam.yml ~/mediamtx/cam-cm3.yml && cp pi/mediamtx/cam-ar0234.yml ~/mediamtx/
+sudo install -m 755 pi/ar0234/camera /usr/local/bin/camera
+sudo cp pi/systemd/*.service /etc/systemd/system/ && sudo systemctl enable mediamtx pi-detect
 ```
-**Login for the pages:** `cam.yml` ships with a placeholder. Set `pass:` to `sha256:` + base64(sha256(password)):
+**Login for the pages:** the `cam*.yml` files ship with a placeholder. Set `pass:` in both to `sha256:` +
+base64(sha256(password)):
 ```bash
 python3 -c "import hashlib,base64,getpass; print('sha256:'+base64.b64encode(hashlib.sha256(getpass.getpass().encode()).digest()).decode())"
 ```
-Then open `http://<pi>:8889/detect` (user `viewer`). Laptop radar: `laptop\fc_view.ps1`. Full details and every
-fix: `docs/guide.html` and `docs/PROGRESS.md`.
 
-## AR0234 camera board
-
-The in-house board itself — schematic, Gerbers, BOM, pick-and-place, photos, how it was made (EasyEDA Pro, JLCPCB)
-and its known limits: [`hardware/ar0234-board/`](hardware/ar0234-board/README.md).
-
-## AR0234 setup (v2.0)
+### 2. AR0234 (main)
 
 The board goes on **CAM0** with a 22-to-22 cable whose contacts face the pads at **both** ends (blue stiffener away
 from the board at J1) — the wrong way round gives `failed to read chip id` and 0 V on the board.
-
-```sh
-# driver + Pi 5 power-timing overlay: see docs/guide.html 2.1 (Kurokesu repo, apt pin, ar0234-rpi-dkms)
-# camera stack with AR0234 support (same release as stock + AR0234; 5 packages, nothing removed)
-V=1:0.7.2+rpt20260817+krks4-1
+```bash
+# Kurokesu repo + apt pin (so it can never replace the stock camera packages): docs/guide.html 2.1
+sudo apt install -y ar0234-rpi-dkms device-tree-compiler
+V=1:0.7.2+rpt20260817+krks4-1     # libcamera with AR0234 support: same release as stock, 5 packages, nothing removed
 sudo apt install libcamera0.7=$V libcamera-ipa=$V libcamera-tools=$V libcamera-v4l2=$V python3-libcamera=$V
+# Pi 5 power-timing overlay
+dtc -@ -I dts -O dtb -o ar0234-gamuda-power.dtbo pi/ar0234/ar0234-gamuda-power-overlay.dts
+sudo cp ar0234-gamuda-power.dtbo /boot/firmware/overlays/
 # the fitted mono sensor reports the colour chip id 0x0A56 -> force mono
-cd /usr/src/ar0234-rpi-dkms-0.1.2 && sudo patch -p1 < pi/ar0234/ar0234-force-mono.patch
+cd /usr/src/ar0234-rpi-dkms-0.1.2 && sudo patch -p1 < ~/pi5-drone-vision/pi/ar0234/ar0234-force-mono.patch
 sudo dkms build -m ar0234-rpi-dkms -v 0.1.2 --force && sudo dkms install -m ar0234-rpi-dkms -v 0.1.2 --force
 echo "options ar0234 force_mono=1" | sudo tee /etc/modprobe.d/ar0234.conf
-# stream: MediaMTX's bundled libcamera can't open the AR0234, so rpicam-vid feeds /cam
-cp pi/mediamtx/cam.yml ~/mediamtx/cam-cm3.yml && cp pi/mediamtx/cam-ar0234.yml ~/mediamtx/   # set the hash in both
-sudo install -m 755 pi/ar0234/camera /usr/local/bin/camera
-sudo camera ar0234 && sudo reboot           # back: sudo camera cm3 && sudo reboot
+sudo camera ar0234 && sudo reboot
 ```
+Check: `journalctl -k -b | grep "chip id"` → `Success reading chip id: 0xa56`; `rpicam-hello --list-cameras` →
+`ar0234 [1920x1200 10-bit MONO]`. After a kernel or driver update, re-apply the patch.
 
-`pi_detect.py` picks the distance-grid orientation and field of view from the `camera` setting (AR0234 + 4 mm
-lens: `--tof-flip lrt --tof-fov 0.58,0.92`). `pi/ar0234/bootcheck.sh` (user crontab `@reboot`) logs the chip ID
-and stream at every boot, for the cold-boot test.
+### 3. CM3 (backup)
+
+Plug the CM3 into **CAM0** (Pi off), then:
+```bash
+sudo camera cm3 && sudo reboot      # auto-detect on; MediaMTX reads the CM3 itself (180° flip, focus at infinity)
+```
+Nothing else changes: the same pages, detection, distances (the sensor settings switch with the camera) and MAVLink.
+
+Then open `http://<pi>:8889/cam` or `/detect` (user `viewer`). Laptop radar: `laptop\fc_view.ps1`. Every result and
+fix: `docs/guide.html` and `docs/PROGRESS.md`.
 
 ## Lessons that shaped the code
 
@@ -125,16 +167,18 @@ and stream at every boot, for the cold-boot test.
 - **The Pi has no battery clock.** At boot the date is wrong, then jumps: logs are numbered, timelines monotonic.
 - **Stop the detector with `systemctl`**, never a plain kill: the Hailo must be closed cleanly.
 - **Power first.** Brownouts looked like network lag, camera faults and freezes.
-- The CM3 ribbon connectors are the weakest mechanical point: fix the camera and strain-relieve the ribbon.
+- **Ribbons and jumpers are the weak points:** a reversed camera cable looked like a dead board; a jumper loosened in
+  transport stopped the distance sensor. Fix the camera, strain-relieve the ribbon, solder the sensor wires.
 
 ## Known limits / next
 
 - The COCO model has no door/window/wall classes; an indoor fine-tune (round 1: mAP50 0.33) was **not** good
   enough — round 2 needs the drone camera's own indoor photos.
-- VL53L5CX: ~4 m indoors, much less in sunlight, 45° forward only; glass may be invisible to it.
-- The real flight controller link (J11 UART, ArduPilot params) is still to test; so far a laptop stand-in.
-- **AR0234:** cold-boot test 10/10 still to redo (2/2 recorded passed); lens lock and a joint camera + sensor
-  mount needed for flight; latency could drop ~35 ms by letting rpicam-vid publish RTSP directly (no ffmpeg).
+- VL53L5CX: ~4 m indoors, much less in sunlight, **45° forward only** (the FC knows nothing about the sides);
+  glass may be invisible to it; a hand at 1 m is smaller than one of its zones.
+- The real flight controller link (USB / J11 UART) is still to test with the FC team; so far a laptop stand-in.
+- AR0234: cold-boot test 2/2 recorded (full 10/10 skipped); lens lock and a joint camera + sensor mount needed
+  for flight; latency could drop ~35 ms by letting rpicam-vid publish RTSP directly (no ffmpeg).
 
 ## Credits
 
@@ -142,7 +186,8 @@ Indoor Objects dataset (Roboflow Universe, project-tgiyj/indoor-objects-4uctj) �
 [MediaMTX](https://github.com/bluenviron/mediamtx), [Ultralytics YOLO](https://github.com/ultralytics/ultralytics),
 [Hailo / Raspberry Pi AI HAT+](https://www.raspberrypi.com/documentation/accessories/ai-hat-plus.html),
 [pymavlink](https://github.com/ArduPilot/pymavlink),
-[vl53l5cx-python](https://github.com/pimoroni/vl53l5cx-python) (Pimoroni, wrapping ST's ULD).
+[vl53l5cx-python](https://github.com/pimoroni/vl53l5cx-python) (Pimoroni, wrapping ST's ULD),
+[Kurokesu AR0234 driver](https://github.com/Kurokesu/ar0234-rpi-driver).
 
 Internal project — Gamuda. The AR0234 board and the GAMUDA_EVT1 flight controller referenced in `docs/` are
 in-house designs; keep this repository private unless cleared.
