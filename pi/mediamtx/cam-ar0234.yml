@@ -1,0 +1,32 @@
+# Logins (2026-09-28). The Pi itself (pi_detect.py reads /cam, publishes /detect) needs none;
+# everyone else -- browser, VLC, QGC, detect.ps1 -- logs in as 'viewer'. Only the hash is stored.
+authInternalUsers:
+  - user: any
+    pass:
+    ips: ['127.0.0.1', '::1']
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+      - action: metrics
+      - action: pprof
+  - user: viewer
+    pass: sha256:REPLACE_WITH_YOUR_HASH   # base64(sha256(password)) -- see README
+    ips: []
+    permissions:
+      - action: read
+      - action: playback
+
+# Pi 5 + Camera Module 3 -> http://pi5drone.local:8889/cam (browser, WebRTC)
+#                           rtsp://pi5drone.local:8554/cam (QGC / VLC)
+paths:
+  cam:
+    # AR0234 (2026-10-05): MediaMTX's bundled libcamera has no AR0234 support, so the system
+    # rpicam-vid (Kurokesu libcamera) feeds this path; MediaMTX restarts it if it exits.
+    # Full 1920x1200 sensor view scaled to 1280x800. CM3 settings: cam.yml.bak-cm3
+    source: publisher
+    runOnInit: sh -c "rpicam-vid -t 0 -n --mode 1920:1200:10:P --width 1280 --height 800 --framerate 30 --ev 0.5 --codec h264 --inline --intra 15 --low-latency --bitrate 3000000 --libav-format h264 -o - | ffmpeg -loglevel error -f h264 -framerate 30 -i - -c copy -f rtsp rtsp://127.0.0.1:$RTSP_PORT/$MTX_PATH"
+    runOnInitRestart: yes
+  detect:                        # boxed video published by ~/detect/pi_detect.py
+    source: publisher

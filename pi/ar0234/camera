@@ -41,4 +41,11 @@ awk -v b="$BEGIN" -v e="$END" '
 printf '%s\n[all]\n%s\n%s\n' "$BEGIN" "$block" "$END" >> "$tmp"
 cat "$tmp" > "$CFG"
 rm -f "$tmp"
+# the stream settings differ too: the CM3 is read by MediaMTX itself, the AR0234 through rpicam-vid
+# (MediaMTX's bundled libcamera has no AR0234 support). MediaMTX reloads cam.yml by itself.
+MTX=${CAMERA_MTX:-/home/pi/mediamtx}
+if [ -f "$MTX/cam-$1.yml" ]; then
+  cp "$MTX/cam-$1.yml" "$MTX/cam.yml"
+  chown --reference="$MTX/cam-$1.yml" "$MTX/cam.yml" 2>/dev/null || true
+fi
 echo "camera set to $1 -- reboot to apply (sudo reboot)"

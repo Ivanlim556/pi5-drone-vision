@@ -209,6 +209,8 @@ def _tof_worker(buf, stamp, frames, errors, flip, min_m):
             g = np.flipud(g)
         if "lr" in flip:
             g = np.fliplr(g)
+        if "t" in flip:  # sensor turned 90° relative to the camera: swap rows and columns
+            g = g.T
         with buf.get_lock():
             buf[:] = g.ravel()
             stamp.value = time.monotonic()  # CLOCK_MONOTONIC is system-wide: comparable across processes
@@ -257,6 +259,27 @@ class ToF:
             if time.monotonic() - self.stamp.value > max_age:
                 return None
             return np.array(self.buf[:]).reshape(8, 8)
+
+
+def _ar0234(cfg="/boot/firmware/config.txt"):
+    try:
+        return any(l.startswith("dtoverlay=ar0234") for l in open(cfg))
+    except OSError:
+        return False
+
+
+def default_tof_flip():
+    """How the sensor sits next to each camera (bench hand tests). CM3 2026-09-28: udlr.
+    AR0234 2026-10-05 (sensor right of the camera, turned 90°): udlr showed an upright hand as a
+    sideways band; t: torso at 70 cm read 3 m, near zones above the head = upside down.
+    Flips run before the transpose, so the picture's up/down flip is "lr" here -> lrt."""
+    return "lrt" if _ar0234() else "udlr"
+
+
+def default_tof_fov(cfg="/boot/firmware/config.txt"):
+    """45° sensor vs the camera's view. CM3 66°x41°: 0.64,1.10. AR0234 + 4 mm (70°) lens,
+    full 1920x1200 sensor 71.5°x48.5°: tan(22.5)/tan(35.8) = 0.58, /tan(24.3) = 0.92."""
+    return "0.58,0.92" if _ar0234(cfg) else "0.64,1.10"
 
 
 def tof_edges(w, h, fov):
@@ -424,8 +447,10 @@ def main():
     ap.add_argument("--no-tof", action="store_true", help="skip the VL53L5CX distance sensor")
     # calibration knobs: set once from the hand test (hand on the left of the picture -> grid red on the left).
     # 2026-09-28, sensor taped beside the camera: 'ud' showed a left hand on the right -> 'udlr'.
-    ap.add_argument("--tof-flip", default="udlr", help="orient the 8x8 grid: '', ud, lr or udlr")
-    ap.add_argument("--tof-fov", default="0.64,1.10", help="sensor view as a fraction of the camera's width,height")
+    ap.add_argument("--tof-flip", default=default_tof_flip(),
+                    help="orient the 8x8 grid: any of ud, lr, t (transpose, applied last); default from the camera")
+    ap.add_argument("--tof-fov", default=default_tof_fov(), help="sensor view as a fraction of the camera's width,height "
+                    "(default: from the camera picked with the `camera` command)")
     ap.add_argument("--tof-min", type=float, default=0.10, help="ignore distance readings closer than this (m)")
     ap.add_argument("--log-dir", default=os.path.expanduser("~/detect/logs"), help="flight log folder (one CSV per run)")
     ap.add_argument("--no-log", action="store_true", help="do not write a flight log")

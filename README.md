@@ -5,7 +5,10 @@ Onboard vision for an obstacle-avoiding drone: a **Raspberry Pi 5** streams live
 and reports obstacles to the flight controller over **MAVLink** (ArduPilot `OBSTACLE_DISTANCE`).
 
 > **Milestone v1.0 — Camera Module 3 (2026-09-30).** The full pipeline works on the bench with the Raspberry Pi
-> Camera Module 3. v2.0 will move it to the in-house **AR0234** global-shutter camera board.
+> Camera Module 3.
+>
+> **v2.0 — AR0234 (2026-10-05, pre-release).** The in-house **AR0234** global-shutter mono camera board runs the same
+> pipeline: 1280×800 at 30 fps, detection 29.9 fps, ~180 ms glass to glass. Cold-boot retest still to do before flight.
 
 ![Live /detect page: boxes, distance grid, nearest obstacle](docs/images/detect-with-distance.jpg)
 
@@ -86,6 +89,30 @@ python3 -c "import hashlib,base64,getpass; print('sha256:'+base64.b64encode(hash
 Then open `http://<pi>:8889/detect` (user `viewer`). Laptop radar: `laptop\fc_view.ps1`. Full details and every
 fix: `docs/guide.html` and `docs/PROGRESS.md`.
 
+## AR0234 setup (v2.0)
+
+The board goes on **CAM0** with a 22-to-22 cable whose contacts face the pads at **both** ends (blue stiffener away
+from the board at J1) — the wrong way round gives `failed to read chip id` and 0 V on the board.
+
+```sh
+# driver + Pi 5 power-timing overlay: see docs/guide.html 2.1 (Kurokesu repo, apt pin, ar0234-rpi-dkms)
+# camera stack with AR0234 support (same release as stock + AR0234; 5 packages, nothing removed)
+V=1:0.7.2+rpt20260817+krks4-1
+sudo apt install libcamera0.7=$V libcamera-ipa=$V libcamera-tools=$V libcamera-v4l2=$V python3-libcamera=$V
+# the fitted mono sensor reports the colour chip id 0x0A56 -> force mono
+cd /usr/src/ar0234-rpi-dkms-0.1.2 && sudo patch -p1 < pi/ar0234/ar0234-force-mono.patch
+sudo dkms build -m ar0234-rpi-dkms -v 0.1.2 --force && sudo dkms install -m ar0234-rpi-dkms -v 0.1.2 --force
+echo "options ar0234 force_mono=1" | sudo tee /etc/modprobe.d/ar0234.conf
+# stream: MediaMTX's bundled libcamera can't open the AR0234, so rpicam-vid feeds /cam
+cp pi/mediamtx/cam.yml ~/mediamtx/cam-cm3.yml && cp pi/mediamtx/cam-ar0234.yml ~/mediamtx/   # set the hash in both
+sudo install -m 755 pi/ar0234/camera /usr/local/bin/camera
+sudo camera ar0234 && sudo reboot           # back: sudo camera cm3 && sudo reboot
+```
+
+`pi_detect.py` picks the distance-grid orientation and field of view from the `camera` setting (AR0234 + 4 mm
+lens: `--tof-flip lrt --tof-fov 0.58,0.92`). `pi/ar0234/bootcheck.sh` (user crontab `@reboot`) logs the chip ID
+and stream at every boot, for the cold-boot test.
+
 ## Lessons that shaped the code
 
 - **Nothing may stall the obstacle reports.** The video publisher runs on its own thread with a watchdog; the
@@ -101,7 +128,8 @@ fix: `docs/guide.html` and `docs/PROGRESS.md`.
   enough — round 2 needs the drone camera's own indoor photos.
 - VL53L5CX: ~4 m indoors, much less in sunlight, 45° forward only; glass may be invisible to it.
 - The real flight controller link (J11 UART, ArduPilot params) is still to test; so far a laptop stand-in.
-- **v2.0:** the AR0234 global-shutter mono camera (`dtoverlay=ar0234,4lane,cam0` + `pi/ar0234/` overlay).
+- **AR0234:** cold-boot test 10/10 still to redo (2/2 recorded passed); lens lock and a joint camera + sensor
+  mount needed for flight; latency could drop ~35 ms by letting rpicam-vid publish RTSP directly (no ffmpeg).
 
 ## Credits
 

@@ -10,7 +10,7 @@
 <body>
   <div id="clock"><div id="t">0.000</div>
     <p>Point the Pi camera at this stopwatch. Live stream on the right. Latency = this number minus the one in the video.</p></div>
-  <iframe src="http://pi5drone.local:8889/cam/" allow="autoplay"></iframe>
+  <iframe src="http://pi5drone:8889/cam/" allow="autoplay"></iframe>
 <script>
   const t0 = performance.now(), el = document.getElementById('t');
   (function tick() { el.textContent = ((performance.now() - t0) / 1000).toFixed(3); requestAnimationFrame(tick); })();
