@@ -12,7 +12,7 @@ and reports obstacles to the flight controller over **MAVLink** (ArduPilot `OBST
 Scope: this repository is the Pi side, ending at the MAVLink obstacle reports. The avoidance itself (ArduPilot
 `AVOID_*` / `OA_*` tuning, flying) is the flight-controller team's part.
 
-![Live /detect page: boxes, distance grid, nearest obstacle (CM3)](docs/images/detect-with-distance.jpg)
+![Live /detect page on the AR0234: bottle 0.90 at 24 cm, the red zones on it, background 250-320 cm](docs/images/ar0234-detect-with-distance.jpg)
 
 ## How it works
 
@@ -70,7 +70,10 @@ Nothing needs a keyboard, screen or SSH — power on and within ~40 s:
 
 Distance sensor: tape 50 cm → 54–56 cm, 100 cm → 98–104 cm (±5 cm). MAVLink: ~10 obstacle reports a second.
 
-![Stand-in flight controller: what ArduPilot would receive](docs/images/fc-view-radar.png)
+What the flight controller receives from that same scene — `laptop/fc_view.py` (`--test 4 --save radar.png` writes it
+without a window): 8 slices across the 45° in front, 8.5 reports a second, nearest 23–25 cm, plus the warnings.
+
+![What the FC receives: OBSTACLE_DISTANCE radar, AR0234 setup](docs/images/fc-view-radar-ar0234.png)
 
 ## Hardware
 
@@ -93,7 +96,7 @@ supplies caused brownouts and freezes).
 | `pi/tof_test.py` | Read and print the VL53L5CX 8×8 grid |
 | `pi/mediamtx/cam.yml` · `cam-ar0234.yml` | Camera server config: CM3 (MediaMTX reads the camera) · AR0234 (rpicam-vid feeds it) |
 | `pi/systemd/*.service` | The two boot services |
-| `pi/ar0234/camera` | `sudo camera cm3|ar0234` — switches boot config **and** stream config |
+| `pi/ar0234/camera` | `sudo camera cm3` / `sudo camera ar0234` — switches boot config **and** stream config |
 | `pi/ar0234/ar0234-force-mono.patch` | Driver patch: the mono sensor reports the colour chip ID |
 | `pi/ar0234/ar0234-gamuda-power-overlay.dts` | Pi 5 power-timing overlay for the AR0234 board |
 | `pi/ar0234/bootcheck.sh` | Logs chip ID + stream at every boot (cold-boot test) |
@@ -156,6 +159,8 @@ Plug the CM3 into **CAM0** (Pi off), then:
 sudo camera cm3 && sudo reboot      # auto-detect on; MediaMTX reads the CM3 itself (180° flip, focus at infinity)
 ```
 Nothing else changes: the same pages, detection, distances (the sensor settings switch with the camera) and MAVLink.
+
+![/detect on the CM3 (v1.0)](docs/images/detect-with-distance.jpg)
 
 Then open `http://<pi>:8889/cam` or `/detect` (user `viewer`). Laptop radar: `laptop\fc_view.ps1`. Every result and
 fix: `docs/guide.html` and `docs/PROGRESS.md`.

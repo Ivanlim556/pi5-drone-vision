@@ -58,6 +58,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", default="udpout:pi5drone:14550")
     ap.add_argument("--test", type=float, default=0, metavar="S", help="no window: listen S seconds, print a summary")
+    ap.add_argument("--save", metavar="PNG", help="with --test: also write the radar picture to this file")
     a = ap.parse_args()
 
     m = mavutil.mavlink_connection(a.target, source_system=255, source_component=mavutil.mavlink.MAV_COMP_ID_MISSIONPLANNER)
@@ -93,6 +94,9 @@ def main():
                       f"{min(near) if near else '-'} m, heartbeat {'yes' if age is not None else 'no'}, "
                       f"alerts {[s for _, s in alerts][-3:]}")
                 assert rate > 5 and age is not None, "not receiving from the Pi"
+                if a.save:
+                    cv2.imwrite(a.save, radar(sect, alerts, rate, age))
+                    print("saved", a.save)
                 return
             continue
         cv2.imshow("FC view - what ArduPilot would receive (q to quit)", radar(sect, alerts, rate, age))
