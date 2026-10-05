@@ -303,3 +303,4 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - Cold-boot retest **cleared** (not needed). Drone mounting will most likely not be done within the internship → handed over to the team.
 - GitHub: v2.0-ar0234 made the final/latest release; README "Status and handover"; hardware/ar0234-board/ with schematic, Gerbers, BOM, CPL, photos; AR0234 /detect picture + FC radar picture (`fc_view.py --test 4 --save`).
 - HANDOVER.html 9 rewritten: done / left for the team (FC bench test → J11 → avoidance (FC team) → mounting) / before Ivan leaves (GitHub collaborators or transfer, passwords, Tailscale).
+- GitHub: docs/HANDOVER.html (password-free copy) added + linked; description and topics updated. Collaborators: none added by choice — Ivan may switch the repo to public later (needs clearance: in-house designs; public would also show WiFi names/IPs in PROGRESS and the work email in commit authors).
