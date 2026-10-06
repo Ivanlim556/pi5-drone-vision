@@ -1026,8 +1026,61 @@ sudo nmcli con up "&lt;wifi-name&gt;"</pre></div></div></div></li>
       <li class="step"><input type="checkbox" id="p5a"><div class="step-b"><label for="p5a" class="step-t">A BEC for the Pi: <b>Matek BEC12S-PRO</b>, 5.2 V at 5 A, straight off the LiPo</label>
         <div class="step-d">Drone battery: <b>6S LiPo 10 000 mAh 60C</b> (JMP Leopard) — 25.2 V full, 22.2 V nominal, ~21 V low: well inside the BEC's range; the Pi's ~12 W is negligible next to the motors. The battery can deliver hundreds of amps: solder and heat-shrink the BEC input at the power board / ESC pads. BEC: 9–55 V in (3S–12S), <b>5.2 V default</b> out (8 V / 12 V also selectable — never for the Pi), 5 A continuous / 9 A peak,
         over-current + thermal protection, 5 g. The Pi + Hailo + camera + sensor draw ~10–12 W (~2–2.5 A).
-        <div class="cmd"><pre>LiPo ──► BEC12S-PRO in (+/−)         battery lead / PDB — NOT the FC's 5 V pad
-BEC 5.2 V out ──► USB-C pigtail ──► Pi 5 power port   (keeps the Pi's over-voltage protection)</pre></div>
+        <figure style="margin:12px 0;color:var(--ink)">
+<svg viewBox="0 0 900 340" role="img" aria-label="Drone power wiring: the 6S LiPo feeds the power board; from its pads the Matek BEC12S-PRO makes 5.2 V for the Pi 5 through a USB-C pigtail, while the ESCs and the flight controller take battery power separately; the Pi and the flight controller share only the J11 UART data link (TX, RX, GND), no power." style="max-width:100%;height:auto;font-family:inherit" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="pw-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+    <marker id="pw-p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--warn,#d98c00)"/></marker>
+  </defs>
+  <g fill="none" stroke="currentColor" stroke-width="1.5">
+    <rect x="20" y="40" width="150" height="70" rx="8"/>
+    <rect x="230" y="40" width="170" height="70" rx="8"/>
+    <rect x="470" y="40" width="170" height="70" rx="8" style="stroke:var(--warn,#d98c00)" stroke-width="2.5"/>
+    <rect x="710" y="40" width="170" height="160" rx="8"/>
+    <rect x="230" y="170" width="170" height="56" rx="8"/>
+    <rect x="470" y="240" width="170" height="70" rx="8"/>
+  </g>
+  <g style="stroke:var(--warn,#d98c00)" stroke-width="3" fill="none" marker-end="url(#pw-p)">
+    <line x1="170" y1="75" x2="226" y2="75"/>
+    <line x1="400" y1="75" x2="466" y2="75"/>
+    <line x1="640" y1="75" x2="706" y2="75"/>
+  </g>
+  <g stroke="currentColor" stroke-width="1.5" fill="none" marker-end="url(#pw-a)">
+    <line x1="315" y1="110" x2="315" y2="166"/>
+    <polyline points="400,100 440,100 440,262 466,262"/>
+  </g>
+  <polyline points="795,200 795,275 644,275" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" marker-start="url(#pw-a)" marker-end="url(#pw-a)"/>
+  <g fill="currentColor" font-size="13" text-anchor="middle">
+    <text x="95" y="70" font-weight="600">6S LiPo</text>
+    <text x="95" y="90" font-size="11.5">10 000 mAh · 22.2 V</text>
+    <text x="315" y="70" font-weight="600">Power board / ESC pads</text>
+    <text x="315" y="90" font-size="11.5">battery voltage</text>
+    <text x="555" y="70" font-weight="600">Matek BEC12S-PRO</text>
+    <text x="555" y="90" font-size="11.5">in 9–55 V · out 5.2 V</text>
+    <text x="795" y="68" font-weight="600">Raspberry Pi 5</text>
+    <text x="795" y="88" font-size="11.5">USB-C power port</text>
+    <text x="795" y="122" font-size="11.5">CAM0 · AR0234</text>
+    <text x="795" y="142" font-size="11.5">PCIe · Hailo-8L</text>
+    <text x="795" y="162" font-size="11.5">GPIO · VL53L5CX</text>
+    <text x="795" y="182" font-size="11.5">UART · pins 8 / 10 / 6</text>
+    <text x="315" y="203" font-weight="600">ESCs + motors</text>
+    <text x="555" y="268" font-weight="600">Flight controller</text>
+    <text x="555" y="288" font-size="11.5">GAMUDA_EVT1 · J11</text>
+    <text x="198" y="64" font-size="11.5">XT lead</text>
+    <text x="433" y="64" font-size="11.5">22.2 V</text>
+    <text x="673" y="64" font-size="11.5" font-weight="600">5.2 V</text>
+    <text x="673" y="96" font-size="11.5">USB-C</text>
+    <text x="327" y="142" font-size="11.5" text-anchor="start">battery</text>
+    <text x="448" y="196" font-size="11.5" text-anchor="start">FC's own</text>
+    <text x="448" y="211" font-size="11.5" text-anchor="start">power input</text>
+    <text x="720" y="266" font-size="11.5">J11 UART · TX / RX / GND</text>
+    <text x="720" y="293" font-size="11.5">data only, no power</text>
+  </g>
+</svg>
+        <figcaption class="muted" style="font-size:13px;margin-top:6px">Orange = power to the Pi: battery → power board pads → BEC12S-PRO (5.2 V) → USB-C pigtail → the Pi's
+        normal power port. The motors and the FC take battery power on their own; the Pi and the FC share only the 3-wire J11 data link.
+        <b>Never</b> power the Pi from the FC's 5 V pad, and never feed 5 V into the GPIO header (bypasses the Pi's protection; pins 2/6 are the sensor's).</figcaption>
+        </figure>
         <div class="note crit" style="margin:8px 0"><span class="note-h">No reverse-input protection</span>Battery + and − the wrong way round kills the BEC at once — check polarity before every first connection.</div>
         Order: 1 — BEC on the battery, <b>nothing</b> on its output: the meter reads ~5.2 V with the right polarity on the USB-C pigtail.
         2 — Pi plugged in: <code>PSU_MAX_CURRENT=5000</code> (next step). 3 — <code>vcgencmd pmic_read_adc EXT5V_V</code> ≥ 5.0 V and

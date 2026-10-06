@@ -191,6 +191,10 @@ fix: `docs/guide.html` and `docs/PROGRESS.md`.
 **v2.0 is bench-complete** (Pi side): camera, detection, distance, MAVLink obstacle reports all working and tested.
 Drone integration is handed over to the team, in order: FC bench test over USB → J11 wired link → avoidance
 settings (FC team) → mounting (camera + sensor in one mount, soldered sensor wires, lens lock, 5 V/5 A BEC).
+
+Power on the drone (6S LiPo → Matek BEC12S-PRO at 5.2 V → USB-C pigtail → Pi; the FC link carries data only):
+
+![Drone power wiring](docs/images/drone-power-wiring.png)
 Details: **[`docs/HANDOVER.html`](docs/HANDOVER.html)** — the team handover page (log in, everyday commands, FC link,
 wiring, troubleshooting, what's left; download and open in a browser) — and `docs/guide.html` (status box).
 Passwords are not in this repository: ask the team lead.
