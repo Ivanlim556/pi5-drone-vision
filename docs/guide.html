@@ -1023,8 +1023,17 @@ sudo nmcli con up "&lt;wifi-name&gt;"</pre></div></div></div></li>
 
     <h3>D.2 Power and cooling</h3>
     <ol class="steps">
-      <li class="step"><input type="checkbox" id="p5a"><div class="step-b"><label for="p5a" class="step-t">A BEC for the Pi: 5 V at 5 A, straight off the LiPo</label>
-        <div class="step-d">Not the FC's 5 V rail — that feeds the receiver and GPS, and the Pi would brown them out. The Hailo adds ~2.5 W; the AR0234 board ~250 mA off 3V3. Short, thick wires.</div></div></li>
+      <li class="step"><input type="checkbox" id="p5a"><div class="step-b"><label for="p5a" class="step-t">A BEC for the Pi: <b>Matek BEC12S-PRO</b>, 5.2 V at 5 A, straight off the LiPo</label>
+        <div class="step-d">9–55 V in (3S–12S), <b>5.2 V default</b> out (8 V / 12 V also selectable — never for the Pi), 5 A continuous / 9 A peak,
+        over-current + thermal protection, 5 g. The Pi + Hailo + camera + sensor draw ~10–12 W (~2–2.5 A).
+        <div class="cmd"><pre>LiPo ──► BEC12S-PRO in (+/−)         battery lead / PDB — NOT the FC's 5 V pad
+BEC 5.2 V out ──► USB-C pigtail ──► Pi 5 power port   (keeps the Pi's over-voltage protection)</pre></div>
+        <div class="note crit" style="margin:8px 0"><span class="note-h">No reverse-input protection</span>Battery + and − the wrong way round kills the BEC at once — check polarity before every first connection.</div>
+        Order: 1 — BEC on the battery, <b>nothing</b> on its output: the meter reads ~5.2 V with the right polarity on the USB-C pigtail.
+        2 — Pi plugged in: <code>PSU_MAX_CURRENT=5000</code> (next step). 3 — <code>vcgencmd pmic_read_adc EXT5V_V</code> ≥ 5.0 V and
+        <code>get_throttled</code> = <code>0x0</code>, also with motors spinning (props off, D.3). Not the FC's 5 V rail — it feeds the receiver and
+        GPS, and the Pi would brown them out. Feeding 5 V into the GPIO header instead bypasses the Pi's protection, and pins 2/6 are taken by the
+        distance sensor. Short wires, 22 AWG or thicker.</div></div></li>
       <li class="step"><input type="checkbox" id="p5f"><div class="step-b"><label for="p5f" class="step-t">Tell the firmware the BEC is a 5 A supply — once measured</label>
         <div class="step-d">A BEC does no USB-PD negotiation, so the Pi assumes a weak supply and caps USB at 600 mA — shared with a USB WiFi adapter. After <em>measuring</em> 5 V at 5 A:
         <div class="cmd"><pre>sudo rpi-eeprom-config --edit        # add: PSU_MAX_CURRENT=5000</pre></div>

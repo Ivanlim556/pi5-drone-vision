@@ -304,3 +304,8 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - GitHub: v2.0-ar0234 made the final/latest release; README "Status and handover"; hardware/ar0234-board/ with schematic, Gerbers, BOM, CPL, photos; AR0234 /detect picture + FC radar picture (`fc_view.py --test 4 --save`).
 - HANDOVER.html 9 rewritten: done / left for the team (FC bench test → J11 → avoidance (FC team) → mounting) / before Ivan leaves (GitHub collaborators or transfer, passwords, Tailscale).
 - GitHub: docs/HANDOVER.html (password-free copy) added + linked; description and topics updated. Collaborators: none added by choice — Ivan may switch the repo to public later (needs clearance: in-house designs; public would also show WiFi names/IPs in PROGRESS and the work email in commit authors).
+
+## 2026-10-06
+- Office WiFi very jittery this morning (ping laptop→Pi 2–220 ms, Pi→router max 100 ms; Pi signal 68 %, 2 viewers open) → stream delay + smear. Pi itself fine (29.8 fps, 5.12 V, throttled=0x0).
+- VL53L5CX: 147 restarts in 14 min after carrying the Pi back to the office → jumpers re-seated → 0 restarts/min, 93 % rows with distance. Tape/solder the wires.
+- Drone power plan: **Matek BEC12S-PRO** (9–55 V in, default 5.2 V, 5 A cont/9 A peak, NO reverse-input protection) → USB-C pigtail → Pi power port; then `PSU_MAX_CURRENT=5000`. Added to guide D.2 (v45) and HANDOVER.
