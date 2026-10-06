@@ -309,3 +309,4 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - Office WiFi very jittery this morning (ping laptop→Pi 2–220 ms, Pi→router max 100 ms; Pi signal 68 %, 2 viewers open) → stream delay + smear. Pi itself fine (29.8 fps, 5.12 V, throttled=0x0).
 - VL53L5CX: 147 restarts in 14 min after carrying the Pi back to the office → jumpers re-seated → 0 restarts/min, 93 % rows with distance. Tape/solder the wires.
 - Drone power plan: **Matek BEC12S-PRO** (9–55 V in, default 5.2 V, 5 A cont/9 A peak, NO reverse-input protection) → USB-C pigtail → Pi power port; then `PSU_MAX_CURRENT=5000`. Added to guide D.2 (v45) and HANDOVER.
+- Drone battery: **6S LiPo 10000 mAh 60C (JMP Leopard)** — 25.2 V full / 22.2 V nominal, inside the BEC12S-PRO 9–55 V range (UBEC DUO max 26 V would be too tight). Noted in guide D.2.
