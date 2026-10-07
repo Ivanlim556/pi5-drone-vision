@@ -16,6 +16,7 @@ import argparse
 import ast
 import atexit
 import csv
+import faulthandler
 import os
 import re
 import signal
@@ -152,11 +153,21 @@ class HailoDetector:
         atexit.register(self.close)
 
     def close(self):
+        # a wedged Hailo (2026-10-07) never returns from these calls: give up after 5 s instead of making
+        # systemd wait 90 s and SIGKILL us -- the device needs a reboot either way
         if self._act:
-            self._act.__exit__(None, None, None)
-            self._pipe.__exit__(None, None, None)
-            self.dev.release()
-            self._act = None
+            t = threading.Thread(target=self._close, daemon=True)
+            t.start()
+            t.join(5)
+            if t.is_alive():
+                print("Hailo close stuck for 5 s -- exiting without it (reboot to reset the Hailo)", file=sys.stderr)
+                os._exit(1)
+
+    def _close(self):
+        self._act.__exit__(None, None, None)
+        self._pipe.__exit__(None, None, None)
+        self.dev.release()
+        self._act = None
 
     def __call__(self, img):
         canvas, s, left, top = letterbox(img, self.size)
@@ -429,6 +440,9 @@ class Publisher:
         self._kill()
 
 
+STALL_S = 15  # no frame processed for this long = detector stuck (Hailo or camera): exit, let systemd restart
+
+
 def main():
     # SIGTERM (kill, systemctl stop/restart) would end Python without running atexit, so the Hailo is
     # never closed; 2026-09-29 that left the driver "Device disconnected" until a reboot. Exit normally.
@@ -460,7 +474,14 @@ def main():
     a = ap.parse_args()
     fov = tuple(float(v) for v in a.tof_fov.split(","))
 
-    det = HailoDetector(a.model, a.conf) if a.model.endswith(".hef") else Detector(a.model, a.conf)
+    if a.model.endswith(".hef"):
+        try:
+            det = HailoDetector(a.model, a.conf)
+        except Exception as e:  # Hailo wedged (e.g. after a stall): keep detecting on the CPU instead of crash-looping
+            print(f"Hailo unavailable ({e}); falling back to the CPU model yolo11n-320.onnx", file=sys.stderr)
+            det = Detector("yolo11n-320.onnx", a.conf)
+    else:
+        det = Detector(a.model, a.conf)
     if a.max_fps is None:
         a.max_fps = 30 if isinstance(det, HailoDetector) else 15
     if a.image:
@@ -497,6 +518,12 @@ def main():
             continue
         t = time.time()
         dets = det(frame)
+        # 2026-10-07: a Hailo transfer error (HAILO_INVALID_OPERATION) left det() blocked for good -- the service
+        # stayed "active" while /detect, the log and MAVLink were dead. faulthandler's timer runs in C, so it
+        # fires even if the stuck call holds the GIL: no frame for STALL_S -> stack dump + exit(1) -> systemd
+        # restarts us (Restart=always). Re-arming each frame cancels the previous timer.
+        if not a.test:
+            faulthandler.dump_traceback_later(STALL_S, exit=True)
         if a.max_fps and not a.test:
             time.sleep(max(0.0, 1 / a.max_fps - (time.time() - t)))
         fps = 0.9 * fps + 0.1 / max(time.time() - t, 1e-6) if done else 1 / max(time.time() - t, 1e-6)
@@ -523,6 +550,7 @@ def main():
             pub = Publisher(a.out, int(a.max_fps) if a.max_fps else 30)
         pub.push(draw(frame, dets, fps, det.label, g, fov, dists))  # never blocks
 
+    faulthandler.cancel_dump_traceback_later()
     # stop the reader cleanly: killing it mid-read aborts with "FATAL: exception not rethrown"
     stream.ok = False
     stream.thread.join(timeout=2)

@@ -43,7 +43,9 @@ Nothing needs a keyboard, screen or SSH — power on and within ~40 s:
      orientation and field of view (AR0234: `lrt`, `0.58,0.92` · CM3: `udlr`, `0.64,1.10`);
    - powers the VL53L5CX (PWREN/LPn), runs it in its own process and power-cycles it if it stops answering for 3 s;
    - publishes `/detect`, writes the flight log, and sends MAVLink obstacle reports.
-3. Both services restart on any failure (`Restart=always`); a stalled video publisher is restarted by a watchdog.
+3. Both services restart on any failure (`Restart=always`); a stalled video publisher is restarted by a watchdog;
+   if detection stalls for 15 s (e.g. a Hailo transfer error) the process exits and is restarted, and if the
+   Hailo then won't open it carries on with YOLO11n on the CPU (15 fps) until a reboot resets the chip.
 
 ## Software and firmware (as running, 2026-10-05)
 
