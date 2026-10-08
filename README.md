@@ -40,7 +40,8 @@ Nothing needs a keyboard, screen or SSH — power on and within ~40 s:
 2. **`pi-detect.service`** starts `pi_detect.py`, which by itself:
    - uses the **Hailo-8L** if `/dev/hailo0` exists (`yolov8s_h8l.hef`), otherwise the CPU (`yolo11n-320.onnx`, 15 fps);
    - reads `/boot/firmware/config.txt` to know **which camera** is selected and picks the matching distance-grid
-     orientation and field of view (AR0234: `lrt`, `0.58,0.92` · CM3: `udlr`, `0.64,1.10`);
+     orientation, field of view and parallax baseline (AR0234: `lrt`, `0.58,0.92`, 9.5 cm · CM3: `udlr`,
+     `0.64,1.10`, 0);
    - powers the VL53L5CX (PWREN/LPn), runs it in its own process and power-cycles it if it stops answering for 3 s;
    - publishes `/detect`, writes the flight log, and sends MAVLink obstacle reports.
 3. Both services restart on any failure (`Restart=always`); a stalled video publisher is restarted by a watchdog;
@@ -87,7 +88,12 @@ supplies caused brownouts and freezes).
   (JLCPCB), test points and known limits: **[`hardware/ar0234-board/`](hardware/ar0234-board/README.md)**.
   Lens: Arducam M12 4 mm (M2504ZH05S, ~70° across), focused at 3–5 m.
 - **VL53L5CX-SATEL → GPIO:** GND→6 · IOVDD→1 (3.3 V) · AVDD→2 (5 V) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) ·
-  SCL→5 · SDA→3 · I2C_RST→9 (GND) · INT→7 (optional). Mounted right beside the camera, facing the same way.
+  SCL→5 · SDA→3 · I2C_RST→9 (GND) · INT→7 (optional).
+- **Sensor mounting (AR0234 bench rig):** the VL53L5CX sits **9.5 cm beside the lens**, both **upright and facing
+  straight ahead, parallel**. `pi_detect.py` corrects the parallax per zone from that gap (`--tof-baseline 0.095`,
+  default with the AR0234): without it a box 50 cm away got the wall's distance; with it, its own. **If you move the
+  sensor, set the new gap** (metres, + = the way it is now; 0 = off). A sensor leaning back by ~10° puts the readings
+  ~2 rows low — stand it upright. Closer to the lens is always better (less parallax at short range).
 
 ## Repository
 
@@ -176,7 +182,9 @@ fix: `docs/guide.html` and `docs/PROGRESS.md`.
 - **Stop the detector with `systemctl`**, never a plain kill: the Hailo must be closed cleanly.
 - **Power first.** Brownouts looked like network lag, camera faults and freezes.
 - **Ribbons and jumpers are the weak points:** a reversed camera cable looked like a dead board; a jumper loosened in
-  transport stopped the distance sensor. Fix the camera, strain-relieve the ribbon, solder the sensor wires.
+  transport stopped the distance sensor, and handling the board while running dropped the camera ("frontend has
+  timed out"). Put the Pi, camera and sensor on **one rigid base**; tape the ribbon flat 1–2 cm from each connector
+  with slack between; solder (or hot-glue) the sensor wires and tape the bundle; never touch the cable while powered.
 
 ## Known limits / next
 

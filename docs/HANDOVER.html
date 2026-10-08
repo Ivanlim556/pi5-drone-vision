@@ -146,7 +146,7 @@ Read sections 1 to 3 before touching anything.</p>
 <tr><td>PWREN</td><td>11 (GPIO17)</td><td>INT</td><td>7 (unused)</td></tr>
 <tr><td>LPn</td><td>13 (GPIO27)</td><td></td><td></td></tr>
 </table></div>
-<p>I²C bus 1, address <code>0x29</code>. The sensor faces the same way as the camera. Peel off the protective film.</p>
+<p>I²C bus 1, address <code>0x29</code>. Peel off the protective film. <b>Mounting:</b> the sensor sits <b>9.5 cm beside the lens</b>, both <b>upright and facing straight ahead</b>, parallel. The detector corrects for that gap (setting <code>--tof-baseline 0.095</code>); if you move the sensor, change it to the new gap in metres. Keep everything on one rigid base and tape the cables near each connector — loose cables disconnect.</p>
 
 <h2 id="fix">7. When something breaks</h2>
 <div class="tw"><table>
@@ -158,6 +158,7 @@ Read sections 1 to 3 before touching anything.</p>
 <tr><td>No picture; log says <code>frontend has timed out</code></td><td>Camera ribbon loose. Power off, reseat both ends (CAM0), and don't move the camera while it's running.</td></tr>
 <tr><td>Boxes but no distances</td><td>Sensor frozen. The software power-cycles it by itself within 3 s. If it stays dead: <code>pinctrl get 2,3</code> should show <code>hi</code> for both. If SDA is <code>lo</code>, power off and reseat the SDA wire (pin 3).</td></tr>
 <tr><td>Log says <code>Device disconnected</code> (Hailo)</td><td>Someone used <code>kill</code>. Run <code>sudo reboot</code>.</td></tr>
+<tr><td>Box shows the wall's distance, not the object's; squares too high/low</td><td>The sensor moved or leans: stand it upright, parallel to the lens, at the gap set in <code>--tof-baseline</code> (9.5 cm now).</td></tr>
 <tr><td>Distances look mirrored (obstacle on the wrong side)</td><td>The sensor was turned. Add <code>--tof-flip ud</code> (or <code>lr</code>, <code>udlr</code>) to the <code>ExecStart=</code> line of the service file. The default is <code>udlr</code>.</td></tr>
 <tr><td>Wrong date in log names</td><td>Normal: the Pi has no clock battery. Logs are numbered (<code>0087_…</code>); trust the <code>t_s</code> column.</td></tr>
 </table></div>
