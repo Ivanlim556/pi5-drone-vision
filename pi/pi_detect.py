@@ -287,6 +287,12 @@ def default_tof_flip():
     return "lrt" if _ar0234() else "udlr"
 
 
+def default_tof_baseline():
+    """Sensor's sideways offset from the lens, metres (+ = sensor right of the lens). AR0234 bench mount
+    2026-10-08: 9.5 cm right (measured with a ruler). CM3: sat right beside the lens, ignored."""
+    return 0.095 if _ar0234() else 0.0
+
+
 def default_tof_fov(cfg="/boot/firmware/config.txt"):
     """45° sensor vs the camera's view. CM3 66°x41°: 0.64,1.10. AR0234 + 4 mm (70°) lens,
     full 1920x1200 sensor 71.5°x48.5°: tan(22.5)/tan(35.8) = 0.58, /tan(24.3) = 0.92."""
@@ -301,12 +307,25 @@ def tof_edges(w, h, fov):
     return np.linspace(w / 2 * (1 - fx), w / 2 * (1 + fx), 9), np.linspace(h / 2 * (1 - fy), h / 2 * (1 + fy), 9)
 
 
-def box_distance(g, xs, ys, box):
-    """Nearest valid distance among the zones whose centre falls inside the box, or None."""
+def zone_shift(g, w, fov, base):
+    """Parallax: horizontal pixel shift of each zone in the picture. The sensor sits `base` metres to the
+    RIGHT of the lens (negative = left), so a zone at distance d lands f*base/d further right than its
+    angle alone says -- like a stereo pair. f follows from --tof-fov (the camera's tan(half-angle) =
+    tan(22.5)/fov[0]). 2026-10-08 bench: base 9.5 cm -> 170 px (~2 zones) at 0.5 m, 85 px at 1 m."""
+    if not base or g is None:
+        return np.zeros((8, 8))
+    f = w / 2 * fov[0] / np.tan(np.radians(22.5))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.nan_to_num(f * base / g)  # no reading -> no shift
+
+
+def box_distance(g, xs, ys, box, dx=None):
+    """Nearest valid distance among the zones whose (parallax-corrected) centre falls inside the box, or None."""
     x1, y1, x2, y2 = box
     cx, cy = (xs[:-1] + xs[1:]) / 2, (ys[:-1] + ys[1:]) / 2
-    sub = g[np.ix_((cy >= y1) & (cy <= y2), (cx >= x1) & (cx <= x2))]
-    return None if sub.size == 0 or np.isnan(sub).all() else float(np.nanmin(sub))
+    zx = cx[None, :] + (dx if dx is not None else 0)
+    m = (zx >= x1) & (zx <= x2) & ((cy >= y1) & (cy <= y2))[:, None] & ~np.isnan(g)
+    return float(g[m].min()) if m.any() else None
 
 
 class FlightLog:
@@ -336,25 +355,27 @@ class FlightLog:
         self.w.writerow([time.strftime("%H:%M:%S"), f"{time.monotonic() - self.t0:.2f}", f"{fps:.1f}", near, temp, seen])
 
 
-def box_distances(g, dets, w, h, fov):
+def box_distances(g, dets, w, h, fov, base=0.0):
     """Distance (m) for each detection, None where the grid has nothing valid under the box."""
     if g is None:
         return [None] * len(dets)
     xs, ys = tof_edges(w, h, fov)
-    return [box_distance(g, xs, ys, d[:4]) for d in dets]
+    dx = zone_shift(g, w, fov, base)
+    return [box_distance(g, xs, ys, d[:4], dx) for d in dets]
 
 
-def draw(img, dets, fps, label, g=None, fov=(0.64, 1.10), dists=None):
-    dists = dists if dists is not None else box_distances(g, dets, img.shape[1], img.shape[0], fov)
+def draw(img, dets, fps, label, g=None, fov=(0.64, 1.10), dists=None, base=0.0):
+    dists = dists if dists is not None else box_distances(g, dets, img.shape[1], img.shape[0], fov, base)
     if g is not None:
         xs, ys = tof_edges(img.shape[1], img.shape[0], fov)
+        dx = zone_shift(g, img.shape[1], fov, base)
         shade = img.copy()
         for r in range(8):
             for c in range(8):
                 if np.isnan(g[r, c]):
                     continue
                 t = min(g[r, c] / 2.0, 1.0)  # 0 m red -> 2 m and beyond green
-                p1, p2 = (int(xs[c]), int(ys[r])), (int(xs[c + 1]) - 1, int(ys[r + 1]) - 1)
+                p1, p2 = (int(xs[c] + dx[r, c]), int(ys[r])), (int(xs[c + 1] + dx[r, c]) - 1, int(ys[r + 1]) - 1)
                 cv2.rectangle(shade, p1, p2, (0, int(255 * t), int(255 * (1 - t))), -1)
                 cv2.putText(img, f"{g[r, c] * 100:.0f}", (p1[0] + 4, max(12, p1[1] + 16)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1)
@@ -463,6 +484,8 @@ def main():
     # 2026-09-28, sensor taped beside the camera: 'ud' showed a left hand on the right -> 'udlr'.
     ap.add_argument("--tof-flip", default=default_tof_flip(),
                     help="orient the 8x8 grid: any of ud, lr, t (transpose, applied last); default from the camera")
+    ap.add_argument("--tof-baseline", type=float, default=default_tof_baseline(),
+                    help="sensor offset from the lens in metres, + = right of it (parallax correction; 0 = off)")
     ap.add_argument("--tof-fov", default=default_tof_fov(), help="sensor view as a fraction of the camera's width,height "
                     "(default: from the camera picked with the `camera` command)")
     ap.add_argument("--tof-min", type=float, default=0.10, help="ignore distance readings closer than this (m)")
@@ -473,6 +496,7 @@ def main():
     ap.add_argument("--mavlink", default="udpin:0.0.0.0:14550", help="MAVLink target for obstacle reports ('' = off)")
     a = ap.parse_args()
     fov = tuple(float(v) for v in a.tof_fov.split(","))
+    base = a.tof_baseline
 
     if a.model.endswith(".hef"):
         try:
@@ -535,7 +559,7 @@ def main():
                 break
             continue
         g = tof.grid() if tof else None  # one grid per frame: the picture and the log agree
-        dists = box_distances(g, dets, frame.shape[1], frame.shape[0], fov)
+        dists = box_distances(g, dets, frame.shape[1], frame.shape[0], fov, base)
         if want_log and log is None:
             log = FlightLog(a.log_dir)
             print(f"flight log: {log.path}", file=sys.stderr)
@@ -548,7 +572,7 @@ def main():
                 pass
         if pub is None:
             pub = Publisher(a.out, int(a.max_fps) if a.max_fps else 30)
-        pub.push(draw(frame, dets, fps, det.label, g, fov, dists))  # never blocks
+        pub.push(draw(frame, dets, fps, det.label, g, fov, dists, base))  # never blocks
 
     faulthandler.cancel_dump_traceback_later()
     # stop the reader cleanly: killing it mid-read aborts with "FATAL: exception not rethrown"
