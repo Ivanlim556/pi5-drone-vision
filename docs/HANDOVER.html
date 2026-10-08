@@ -59,11 +59,12 @@ Read sections 1 to 3 before touching anything.</p>
 <h2 id="login">2. Log in to the Pi</h2>
 <div class="card">
 <div class="tw"><table>
-<tr><th>Username</th><td><code>pi</code></td></tr>
-<tr><th>Password</th><td><b>ask the team lead</b> (not stored in the repository)</td></tr>
+<tr><th>Pi login — username</th><td><code>pi</code></td></tr>
+<tr><th>Pi login — password</th><td><b>ask the team lead</b> (not in this public repository) (SSH, <code>sudo</code>, screen + keyboard)</td></tr>
+<tr><th>Web viewer login</th><td>for the <code>/cam</code> and <code>/detect</code> pages (section 3): user <code>viewer</code>, password <b>ask the team lead</b> (not in this public repository)</td></tr>
 <tr><th>Hostname</th><td><code>pi5drone</code> (on the same WiFi: <code>pi5drone.local</code>)</td></tr>
 <tr><th>Office WiFi IP</th><td><code>192.168.0.110</code> (on <code>TP-Link_C6A4</code>; can change)</td></tr>
-<tr><th>Tailscale IP</th><td><code>[pi-tailscale-ip]</code> (only from a device on Ivan's Tailscale)</td></tr>
+<tr><th>Remote access (optional)</th><td>Not set up for the team. To reach the Pi from another network, install Tailscale on your laptop, then on the Pi run <code>sudo tailscale up</code> and log in with <b>your own</b> Tailscale account.</td></tr>
 <tr><th>WiFi it joins</th><td><code>TP-Link_C6A4</code> (office), <code>[phone-hotspot]</code> (Ivan's phone hotspot)</td></tr>
 </table></div>
 </div>
@@ -86,7 +87,7 @@ Read sections 1 to 3 before touching anything.</p>
 <tr><td><a href="http://pi5drone.local:8889/detect">http://pi5drone.local:8889/detect</a></td><td>Camera + YOLO boxes + distances in cm (the main one)</td></tr>
 <tr><td><a href="http://pi5drone.local:8889/cam">http://pi5drone.local:8889/cam</a></td><td>Raw camera, lowest delay (~0.15 s)</td></tr>
 </table></div>
-<p>The pages ask for a login: user <code>viewer</code>, password <b>ask the team lead</b> (separate from the Pi password). Delay of 1–2 s or stutter usually means a weak power supply or poor WiFi.</p>
+<p>The pages ask for the <b>web viewer login</b> (user <code>viewer</code> — password in section 2; it is separate from the Pi password). Delay of 1–2 s or stutter usually means a weak power supply or poor WiFi.</p>
 
 <h2 id="cmds">4. Everyday commands (on the Pi, after <code>ssh</code>)</h2>
 <div class="tw"><table>
@@ -165,7 +166,7 @@ Read sections 1 to 3 before touching anything.</p>
 <tr><th>What</th><th>Where</th></tr>
 <tr><td>Code running on the Pi</td><td><code>/home/pi/detect/</code>: <code>pi_detect.py</code> (main), <code>mavlink_out.py</code>, <code>tof_test.py</code></td></tr>
 <tr><td>Services</td><td><code>/etc/systemd/system/pi-detect.service</code>, <code>mediamtx.service</code> (config <code>/home/pi/mediamtx/cam.yml</code>)</td></tr>
-<tr><td>Source code + releases</td><td>GitHub (private): <a href="https://github.com/Ivanlim556/pi5-drone-vision">Ivanlim556/pi5-drone-vision</a>. <code>v2.0-ar0234</code> = current (AR0234), <code>v1.0-cm3</code> = CM3 version. Ask Ivan for access.</td></tr>
+<tr><td>Source code + releases</td><td>GitHub: <a href="https://github.com/Ivanlim556/pi5-drone-vision">Ivanlim556/pi5-drone-vision</a>. <code>v2.0-ar0234</code> = current (AR0234), <code>v1.0-cm3</code> = CM3 version.</td></tr>
 <tr><td>Full step-by-step log</td><td>OneDrive <code>Gamuda intern\pi5-fpv-bringup\PROGRESS.md</code> (every problem hit so far and how it was fixed)</td></tr>
 <tr><td>Bring-up guide</td><td><code>guide.html</code> in the same folder (includes the AR0234 arrival-day checklist)</td></tr>
 <tr><td>SD card backup</td><td>Ivan's laptop <code>C:\Users\ivan\pi5-backups\cardA-20260930-1413\</code></td></tr>
@@ -254,9 +255,9 @@ flying) is the FC team's part.</p>
 
 <h3>Before Ivan leaves</h3>
 <ul>
-<li><b>GitHub access:</b> the repository is private under Ivan's account — add the teammates as collaborators (Settings → Collaborators) or transfer it to the team/organisation, so the code stays reachable.</li>
-<li><b>Passwords:</b> hand over the Pi and web-viewer passwords, then change them (section 2).</li>
-<li><b>Tailscale:</b> remote access goes through Ivan's account — on the same WiFi use <code>pi5drone.local</code>, or add the Pi to a team account.</li>
+<li><b>Passwords:</b> the Pi login and the web viewer login are in section 2. The team should change both after the handover (section 2).</li>
+<li><b>Tailscale:</b> Ivan removes the Pi from his Tailscale account (on the Pi: <code>sudo tailscale logout</code>). On the same WiFi use <code>pi5drone.local</code>; anyone who wants remote access logs the Pi into their own Tailscale account (<code>sudo tailscale up</code>).</li>
+<li><b>Code:</b> the GitHub repository will be public — <a href="https://github.com/Ivanlim556/pi5-drone-vision">Ivanlim556/pi5-drone-vision</a>.</li>
 </ul>
 <div class="card ok">Safety: propellers <b>off</b> for every bench test. The avoidance only sees a 45° cone in front, nothing to the sides or behind.</div>
 </main>

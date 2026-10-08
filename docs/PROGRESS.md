@@ -202,8 +202,8 @@ Guide: new section **D.0 Bench → flight** (what changes, order of work, the lo
 
 ## Remote access — Tailscale (2026-09-28)
 
-Pi `pi5drone` = **[pi-tailscale-ip]**, laptop `[laptop]` = [laptop-tailscale-ip], account `Ivanlim556`. Works from any network once **Tailscale is ON on the laptop** (tray icon → Connect; it was found stopped).
-- SSH: `ssh pi@pi5drone` (or `ssh pi@[pi-tailscale-ip]`) — same host key as `pi5drone.local`, checked.
+Pi `pi5drone` and Ivan's laptop on Ivan's own Tailscale account (addresses removed — the Pi leaves that account at handover: `sudo tailscale logout`; a teammate can log it into their own with `sudo tailscale up`). Works from any network once **Tailscale is ON on the laptop** (tray icon → Connect; it was found stopped).
+- SSH: `ssh pi@pi5drone` — same host key as `pi5drone.local`, checked.
 - Pages: `http://pi5drone:8889/detect` and `/cam`. Laptop detection away from the office: `.\detect.ps1 --source rtsp://pi5drone:8554/cam` (`.local` only works on the same WiFi).
 - `tailscaled` starts at boot on the Pi. **Node key expires 2027-03-27** → in the Tailscale admin console, *Disable key expiry* for pi5drone.
 - The Pi still needs a WiFi to reach the internet: office WiFi, the hotspot, or home WiFi added with `sudo nmtui`.
@@ -323,3 +323,5 @@ Plan change: ArduPilot does not read it directly → **sensor → Pi → FC** (P
 - 14:5x **Board 1 stopped answering** (`failed to read chip id`, nothing on i2c-10 with EN_RAW forced) right after its holder/lens was swapped for the 80° lens. Re-seat, then a new cable: still fails. **Board 2 on the same new cable + Pi: works** (chip ID 0xa56, 1280x800@30) → the cable and the Pi CAM0 are fine; **board 1 is the problem** (damaged or disturbed during the holder swap). To do: measure C24/C21/C22/C23 on board 1, inspect J1 latch/contacts and around U1/U5 under a magnifier.
 - 16:01 board 1 on CAM0 with the cable that just worked on board 2 (board 2 ran 27 min, 1 self-recovered dropout): **still failed to read chip id** → board 1 confirmed faulty (not cable/Pi). Suspect J1 (pressed into the table while the holder was screwed on — J1 is on the opposite side) or a disturbed part. Next: C24 measurement + magnifier on J1/U1/U5.
 - **Decision 2026-10-07:** board 2 (70° lens) is the main camera; **board 1 rated faulty** (rails OK, no I²C answer), Ivan takes it home to diagnose (R17 clock, C14 reset, R9/R10 + R7/R8 I²C idle, C17 U5 enable; J1/Y1/U5/U1 under magnifier).
+- 2026-10-08 10:00: holder on board 2 secured more firmly (hot glue gun seen in frame) → straight after: chip ID 0xa56, /cam + /detect 1280x800@30, 0 camera errors, **sharpness 25.4 (focus kept)**. Board 2 survived the holder work.
+- 2026-10-08 handover prep: HANDOVER.html — Pi login and **web viewer login** together in section 2 (viewer password still the placeholder for Ivan to type in), Ivan's Tailscale removed (teammates use `pi5drone.local` or their own Tailscale account; Ivan runs `sudo tailscale logout` before leaving), GitHub-access item dropped (repo going public). Public copies (docs/HANDOVER.html, PROGRESS) carry no passwords and no Tailscale addresses.
