@@ -255,7 +255,7 @@
 
     <h3>Using it today</h3>
     <div class="tw"><table><tbody>
-      <tr><td><b>Power on</b></td><td>Wait ~30 s for the Pi to join the office WiFi <code>TP-Link_C6A4</code> or the phone hotspot <code>[phone-hotspot]</code>. The laptop must be on the same one.</td></tr>
+      <tr><td><b>Power on</b></td><td>Wait ~30 s for the Pi to join the office WiFi <code>TP-Link_C6A4</code> or a phone hotspot saved on it. The laptop must be on the same one.</td></tr>
       <tr><td><b>Plain video</b></td><td><code>http://pi5drone.local:8889/cam</code> — any browser. Starts at boot.</td></tr>
       <tr><td><b>Video with boxes</b></td><td><code>http://pi5drone.local:8889/detect</code> — runs on the Hailo, starts at boot. Or on the laptop: <code>.\detect.ps1</code>.</td></tr>
       <tr><td><b>Log in</b></td><td><code>ssh -4 pi@pi5drone.local</code> — <code>-4</code> matters on the hotspot. Hotspot IP 172.20.10.2, office 192.168.0.110.</td></tr>
@@ -351,7 +351,7 @@ netsh wlan show interfaces</pre></div></div></div></li>
         <div class="step-d">Otherwise the radio naps between packets and sends in bursts — delay and dropouts. Once per saved network:
         <div class="cmd"><pre># Pi
 sudo nmcli con mod "TP-Link_C6A4" 802-11-wireless.powersave 2 &amp;&amp; sudo nmcli con up "TP-Link_C6A4"
-sudo nmcli con mod [phone-hotspot] 802-11-wireless.powersave 2</pre></div></div></div></li>
+sudo nmcli con mod "&lt;hotspot-name&gt;" 802-11-wireless.powersave 2</pre></div></div></div></li>
       <li class="step"><input type="checkbox" id="n3" checked><div class="step-b"><label for="n3" class="step-t">Phone hotspot saved, for use away from the office</label>
         <div class="step-d">Turn the hotspot on, pick it from the WiFi icon on the Pi desktop once, and it joins by itself from then on. iPhone: turn on <b>Maximise Compatibility</b>. A new network can be added over SSH with <code>sudo nmtui</code>. A laptop's HDMI port is output only — it cannot show the Pi's screen.</div></div></li>
       <li class="step"><input type="checkbox" id="n4" checked><div class="step-b"><label for="n4" class="step-t">Always <code>ssh -4</code> on the hotspot</label>
