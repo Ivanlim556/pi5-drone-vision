@@ -6,8 +6,12 @@ and reports obstacles to the flight controller over **MAVLink** (ArduPilot `OBST
 
 | Camera | Role | Release |
 |---|---|---|
-| **AR0234** — in-house global-shutter mono board ([`hardware/ar0234-board/`](hardware/ar0234-board/README.md)) | **Main camera** since 2026-10-05 | `v2.0-ar0234` (latest) |
+| **AR0234** — in-house global-shutter mono board ([ar0234-camera-board](https://github.com/Ivanlim556/ar0234-camera-board)) | **Main camera** since 2026-10-05 | `v2.0-ar0234` (latest) |
 | Raspberry Pi **Camera Module 3** | **Backup** — one command switches back | `v1.0-cm3` |
+
+**This repository = the system:** what runs on the Pi with either camera, how it is set up and how it talks to the
+flight controller. **The AR0234 board itself** (schematic, PCB, BOM, fabrication, tests) is in its own repository:
+[ar0234-camera-board](https://github.com/Ivanlim556/ar0234-camera-board).
 
 Scope: this repository is the Pi side, ending at the MAVLink obstacle reports. The avoidance itself (ArduPilot
 `AVOID_*` / `OA_*` tuning, flying) is the flight-controller team's part.
@@ -85,7 +89,7 @@ faulty) · ST VL53L5CX-SATEL on the GPIO header · fan on the Pi fan header · *
 supplies caused brownouts and freezes).
 
 - **AR0234 board** — schematic, Gerbers, BOM, pick-and-place, photos, how it was designed (EasyEDA Pro) and made
-  (JLCPCB), test points and known limits: **[`hardware/ar0234-board/`](hardware/ar0234-board/README.md)**.
+  (JLCPCB), test points, test results and next-revision improvements: **[ar0234-camera-board](https://github.com/Ivanlim556/ar0234-camera-board)** (its own repo).
   Lens: Arducam M12 4 mm (M2504ZH05S, ~70° across), focused at 3–5 m.
 - **VL53L5CX-SATEL → GPIO:** GND→6 · IOVDD→1 (3.3 V) · AVDD→2 (5 V) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) ·
   SCL→5 · SDA→3 · I2C_RST→9 (GND) · INT→7 (optional).
@@ -108,7 +112,6 @@ supplies caused brownouts and freezes).
 | `pi/ar0234/ar0234-force-mono.patch` | Driver patch: the mono sensor reports the colour chip ID |
 | `pi/ar0234/ar0234-gamuda-power-overlay.dts` | Pi 5 power-timing overlay for the AR0234 board |
 | `pi/ar0234/bootcheck.sh` | Optional: logs chip ID + stream at every boot (user crontab `@reboot`) |
-| `hardware/ar0234-board/` | The camera board: schematic, Gerbers, BOM, CPL, netlist, photos |
 | `laptop/fc_view.py` | Stand-in flight controller: radar of what ArduPilot would receive |
 | `laptop/detect.py` | YOLO on the laptop GPU from the Pi's stream |
 | `laptop/latency-test.html` | Stopwatch page for the glass-to-glass latency test |

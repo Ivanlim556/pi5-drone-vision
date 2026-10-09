@@ -181,7 +181,7 @@ flying) is the FC team's part.</p>
 
 <h3>Done (Sep–Oct 2026)</h3>
 <ul>
-<li><b>AR0234 camera board</b> designed, made (JLCPCB) and working: 1280×800 at 30 fps, ~0.18 s delay, mono fix in the driver. Design files on GitHub: <code>hardware/ar0234-board/</code>.</li>
+<li><b>AR0234 camera board</b> designed, made (JLCPCB) and working: 1280×800 at 30 fps, ~0.18 s delay, mono fix in the driver. Design files on GitHub: <a href="https://github.com/Ivanlim556/ar0234-camera-board">ar0234-camera-board</a> (its own repository).</li>
 <li><b>Detection</b> on the Hailo-8L: YOLOv8s at 30 fps, starts by itself at power-on.</li>
 <li><b>Distance sensor</b> VL53L5CX: maximum error 6 cm (to 1 m), aligned to the AR0234; 0 freezes in 77 h since I²C was lowered to 100 kHz.</li>
 <li><b>Obstacle reports to the FC</b> (MAVLink <code>OBSTACLE_DISTANCE</code> ~10/s + heartbeat + warnings), checked live with the laptop stand-in <code>fc_view.ps1</code>.</li>
