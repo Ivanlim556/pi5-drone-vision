@@ -221,5 +221,6 @@ Indoor Objects dataset (Roboflow Universe, project-tgiyj/indoor-objects-4uctj) â
 [vl53l5cx-python](https://github.com/pimoroni/vl53l5cx-python) (Pimoroni, wrapping ST's ULD),
 [Kurokesu AR0234 driver](https://github.com/Kurokesu/ar0234-rpi-driver).
 
-Internal project â€” Gamuda. The AR0234 board and the GAMUDA_EVT1 flight controller referenced in `docs/` are
-in-house designs; keep this repository private unless cleared.
+Gamuda internship project (Lim Wei Quan, 2026). The AR0234 camera board is published separately in
+[ar0234-camera-board](https://github.com/Ivanlim556/ar0234-camera-board); the GAMUDA_EVT1 flight controller
+referenced in `docs/` is a Gamuda in-house design. No passwords are stored in this repository.
