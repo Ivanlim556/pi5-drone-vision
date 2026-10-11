@@ -91,6 +91,8 @@ supplies caused brownouts and freezes).
 - **AR0234 board** — schematic, Gerbers, BOM, pick-and-place, photos, how it was designed (EasyEDA Pro) and made
   (JLCPCB), test points, test results and next-revision improvements: **[ar0234-camera-board](https://github.com/Ivanlim556/ar0234-camera-board)** (its own repo).
   Lens: Arducam M12 4 mm (M2504ZH05S, ~70° across), focused at 3–5 m.
+- **Distance sensor in detail** — wiring, how a distance is made, matching it to the picture, what the FC gets,
+  accuracy, limits, troubleshooting: **[docs/distance-sensor.md](docs/distance-sensor.md)**.
 - **VL53L5CX-SATEL → GPIO:** GND→6 · IOVDD→1 (3.3 V) · AVDD→2 (5 V) · PWREN→11 (GPIO17) · LPn→13 (GPIO27) ·
   SCL→5 · SDA→3 · I2C_RST→9 (GND) · INT→7 (optional).
 - **Sensor mounting (AR0234 bench rig):** the VL53L5CX sits **9.5 cm beside the lens**, both **upright and facing
@@ -118,6 +120,7 @@ supplies caused brownouts and freezes).
 | `training/` | Indoor dataset config and helpers for YOLO fine-tuning |
 | `docs/guide.html` | Full build guide, ordered by phase (open in a browser) |
 | `docs/PROGRESS.md` | Build log: every result, fault and fix |
+| `docs/distance-sensor.md` | The VL53L5CX distance sensor: wiring, processing, parallax, MAVLink sectors, limits |
 | `docs/HANDOVER.html` | Team handover: log in, commands, FC link, wiring, troubleshooting, what's left (no passwords) |
 
 ## Setup
