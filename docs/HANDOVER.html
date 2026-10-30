@@ -64,16 +64,16 @@ Read sections 1 to 3 before touching anything.</p>
 <tr><th>Web viewer — username</th><td><code>viewer</code> (for the <code>/cam</code> and <code>/detect</code> pages, section 3)</td></tr>
 <tr><th>Web viewer — password</th><td><b>ask the team lead</b> (not in this public repository)</td></tr>
 <tr><th>Hostname</th><td><code>pi5drone</code> (on the same WiFi: <code>pi5drone.local</code>)</td></tr>
-<tr><th>Office WiFi IP</th><td><code>192.168.0.110</code> (on <code>TP-Link_C6A4</code>; can change)</td></tr>
+<tr><th>Office WiFi IP</th><td><code>192.168.x.x</code> (on <code>OFFICE_WIFI</code>; can change)</td></tr>
 <tr><th>Remote access (optional)</th><td>Not set up for the team. To reach the Pi from another network, install Tailscale on your laptop, then on the Pi run <code>sudo tailscale up</code> and log in with <b>your own</b> Tailscale account.</td></tr>
-<tr><th>WiFi it joins</th><td><code>TP-Link_C6A4</code> (office). Add another network with <code>sudo nmtui</code></td></tr>
+<tr><th>WiFi it joins</th><td><code>OFFICE_WIFI</code> (office). Add another network with <code>sudo nmtui</code></td></tr>
 </table></div>
 </div>
 
 <h3>From a Windows laptop (PowerShell)</h3>
-<p>Connect your laptop to <b>the same WiFi as the Pi</b> (<code>TP-Link_C6A4</code>), then:</p>
+<p>Connect your laptop to <b>the same WiFi as the Pi</b> (<code>OFFICE_WIFI</code>), then:</p>
 <pre>ssh pi@pi5drone.local</pre>
-<p>First time: type <code>yes</code>, then the password. Nothing shows while you type the password; that's normal. If <code>pi5drone.local</code> isn't found, use the IP: <code>ssh pi@192.168.0.110</code>. If that fails too, find the Pi's current IP in the router's client list.</p>
+<p>First time: type <code>yes</code>, then the password. Nothing shows while you type the password; that's normal. If <code>pi5drone.local</code> isn't found, use the IP: <code>ssh pi@192.168.x.x</code>. If that fails too, find the Pi's current IP in the router's client list.</p>
 <p><code>sudo</code> commands ask for the same password.</p>
 
 <h3>No network at all?</h3>

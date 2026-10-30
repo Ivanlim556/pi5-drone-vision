@@ -39,7 +39,7 @@ Last session: 2026-09-25, office + home (hotspot)
 | Username | `pi` |
 | Password | the one you set in Raspberry Pi Imager (needed only for `sudo`) |
 | Login key | this laptop's `C:\Users\ivan\.ssh\id_ed25519` — no password asked. On another PC, SSH asks for the Pi password instead |
-| IP — office WiFi `TP-Link_C6A4` | 192.168.0.110 |
+| IP — office WiFi `OFFICE_WIFI` | 192.168.x.x |
 | IP — phone hotspot (removed at handover) | 172.20.10.2 |
 
 If `pi5drone.local` is not found, use the IP instead: `ssh pi@172.20.10.2`. IPs can change; if both fail,
